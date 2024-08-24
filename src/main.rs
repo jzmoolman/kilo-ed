@@ -4,20 +4,19 @@ use io::Result;
 mod keyboard;
 mod input;
 mod output;
+mod editor;
 
 use crossterm::{ terminal};
-
-
-use crate::input::editor_process_keypress;
-use crate::output::{die, editor_refresh_screen};
+use crate::editor::Editor;
 
 fn main() -> Result<()> {
     terminal::enable_raw_mode()?;
+    let editor = Editor::new()?;
     loop {
-        if editor_refresh_screen().is_err() {
-            die("Clear Screen");
+        if editor.refresh_screen().is_err() {
+            editor.die("Clear Screen");
         }
-        if editor_process_keypress() {
+        if editor.process_keypress() {
             break;
         }
     }
