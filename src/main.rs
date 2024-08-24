@@ -1,16 +1,22 @@
+use std::io;
+use io::Result;
+
 mod keyboard;
 mod input;
+mod output;
 
-use std::io;
 use crossterm::{ terminal};
-use io::Result;
-use errno::errno;
+
 
 use crate::input::editor_process_keypress;
+use crate::output::{die, editor_refresh_screen};
 
 fn main() -> Result<()> {
     terminal::enable_raw_mode()?;
     loop {
+        if editor_refresh_screen().is_err() {
+            die("Clear Screen");
+        }
         if editor_process_keypress() {
             break;
         }
@@ -19,11 +25,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn die<S: Into<String>>(message : S) {
-    let _ =  terminal::disable_raw_mode();
-    eprintln!("{}: {}", message.into(), errno());
-    std::process::exit(1);
-}
+
 
 
 
