@@ -27,15 +27,14 @@ pub struct Editor {
 impl Editor {
     pub fn new() -> Result<Self> {
         let mut keymap = HashMap::new();
-        keymap.insert('w', EditorKey::ArrowUp);
-        keymap.insert('s', EditorKey::ArrowDown);
-        keymap.insert('a', EditorKey::ArrowRight);
-        keymap.insert('d', EditorKey::ArrowLeft);
+        keymap.insert('k', EditorKey::ArrowUp);
+        keymap.insert('j', EditorKey::ArrowDown);
+        keymap.insert('l', EditorKey::ArrowRight);
+        keymap.insert('h', EditorKey::ArrowLeft);
         Ok(Self {
             screen: Screen::new()?,
             keyboard: Keyboard {},
-            // cursor: Position::default(),
-            cursor: Position { x: 10, y : 12},
+            cursor: Position::default(),
             keymap,
         })
     }
@@ -49,20 +48,32 @@ impl Editor {
                    code: KeyCode::Char('q'),
                    modifiers: KeyModifiers::CONTROL, ..
                } => return Ok(true),
-               KeyEvent { code:KeyCode::Up,.. } => { self.move_cursor(EditorKey::ArrowUp);},
-               KeyEvent { code:KeyCode::Down,.. } => { self.move_cursor(EditorKey::ArrowDown);}
-               KeyEvent { code:KeyCode::Left,.. } => { self.move_cursor(EditorKey::ArrowLeft);},
-               KeyEvent { code:KeyCode::Right,.. } => { self.move_cursor(EditorKey::ArrowRight);},
-               KeyEvent { code:KeyCode::Char(key), .. } => {
-                    match key {
-                        'w'| 'a' | 'd'| 's' => {
-                            let c  = *self.keymap.get(&key).unwrap();
-                            self.move_cursor(c);
-                        }
-                        _ => {}
-                    }
-                }
-                _ => {}
+               KeyEvent {
+                   code:KeyCode::Char(key), .. } => {
+                   match key {
+                       'h'| 'j' | 'k'| 'l' => {
+                           let c  = *self.keymap.get(&key).unwrap();
+                           self.move_cursor(c);
+                       }
+                       _ => {}
+                   }
+               }
+               KeyEvent { code, .. } => match code {
+                   KeyCode::Home => self.move_to_home(),
+                   KeyCode::End => self.move_to_end(),
+                   KeyCode::Up => { self.move_cursor(EditorKey::ArrowUp); },
+                   KeyCode::Down => { self.move_cursor(EditorKey::ArrowDown); }
+                   KeyCode::Left => { self.move_cursor(EditorKey::ArrowLeft); }
+                   KeyCode::Right => { self.move_cursor(EditorKey::ArrowRight); }
+                   KeyCode::PageUp | KeyCode::PageDown => {
+                       let bounds = self.screen.bounds();
+                       for _ in 0..bounds.y {
+                           self.move_cursor(if code == KeyCode::PageUp { EditorKey::ArrowUp } else { EditorKey::ArrowDown });
+                       }
+                   }
+                   _ => {}
+               }
+                // _ => {}
             }
         } else {
             self.die("Unable to read from keyboard");
@@ -97,13 +108,22 @@ impl Editor {
         std::process::exit(1);
     }
 
+    pub fn move_to_home(&mut self) {
+        self.cursor.y = 0;
+    }
+
+    pub fn move_to_end(&mut self) {
+        let position = self.screen.bounds();
+        self.cursor.x = position.x;
+    }
+
     pub fn move_cursor(&mut self, key: EditorKey)  {
         let bounds = self.screen.bounds();
         match key {
             EditorKey::ArrowLeft => {
                 self.cursor.x = self.cursor.x.saturating_sub(1);
             },
-            EditorKey::ArrowRight if self.cursor.x <= bounds.x-1 => self.cursor.x += 1,
+            EditorKey::ArrowRight if self.cursor.x < bounds.x => self.cursor.x += 1,
             EditorKey::ArrowUp => {
                 self.cursor.y  = self.cursor.y.saturating_sub(1);
             },

@@ -76,6 +76,7 @@ impl Screen {
         Ok(())
     }
 
+
     pub fn bounds(&self) -> Position {
         Position {
             x: self.width,
