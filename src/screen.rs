@@ -66,9 +66,9 @@ impl Screen {
         Ok(())
     }
 
-    pub fn cursor_position(&self) -> Result<(u16, u16)> {
-        cursor::position()
-    }
+    // pub fn cursor_position(&self) -> Result<(u16, u16)> {
+    //     cursor::position()
+    // }
 
     pub fn move_to(&mut self, pos: &Position) -> Result<()> {
         self.stdout
