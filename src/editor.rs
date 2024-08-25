@@ -7,11 +7,13 @@ use errno::errno;
 use crate::keyboard::Keyboard;
 use crate::screen::Screen;
 
-use kilo_ed::EditorResult;
+use kilo_ed::*;
+
 
 pub struct Editor {
     screen: Screen,
     keyboard: Keyboard,
+    cursor: Position,
 }
 
 impl Editor {
@@ -19,7 +21,25 @@ impl Editor {
         Ok(Self {
             screen: Screen::new()?,
             keyboard: Keyboard {},
+            cursor: Position::default(),
         })
+    }
+
+
+    // keyboard
+    pub fn process_keypress(&mut self) -> Result<bool> {
+        let c = self.keyboard.read_key();
+        match c {
+            Ok(KeyEvent{
+                   code: KeyCode::Char('q'),
+                   modifiers: KeyModifiers::CONTROL, ..
+               }) => Ok(true),
+            Err(EditorResult::KeyReadFail) => {
+                self.die("Unable to read from keyboard");
+                unreachable!();
+            },
+            _ => Ok(false)
+        }
     }
 
     pub fn start(&mut self) -> Result<()> {
@@ -29,31 +49,15 @@ impl Editor {
             if self.screen.refresh().is_err() {
                 self.die("Clear Screen");
             }
+            self.screen.move_to(&self.cursor)?;
             self.screen.flush()?;
-            if self.process_keypress() {
+            if self.process_keypress()? {
                 break;
             }
         }
         terminal::disable_raw_mode()?;
         Ok(())
     }
-
-    // keyboard
-    pub fn process_keypress(&mut self) -> bool {
-        let c = self.keyboard.read_key();
-        match c {
-            Ok(KeyEvent{
-                   code: KeyCode::Char('q'),
-                   modifiers: KeyModifiers::CONTROL, ..
-               }) => true,
-            Err(EditorResult::KeyReadFail) => {
-                self.die("Unable to read from keyboard");
-                unreachable!();
-            },
-            _ => false
-        }
-    }
-
 
 
     pub fn die<S: Into<String>>(&mut self, message : S) {
