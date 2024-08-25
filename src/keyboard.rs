@@ -7,7 +7,7 @@ use kilo_ed::StdResult;
 pub struct Keyboard;
 
 impl Keyboard {
-    pub fn read_key(&self) -> StdResult<KeyEvent, EditorResult> {
+    pub fn read(&self) -> StdResult<KeyEvent, EditorResult> {
         loop {
             if let Ok(event) = read() {
                 if let Key(key_event) = event {
