@@ -25,9 +25,11 @@ impl Editor {
     pub fn start(&mut self) -> Result<()> {
         terminal::enable_raw_mode()?;
         loop {
+
             if self.screen.refresh().is_err() {
                 self.die("Clear Screen");
             }
+            self.screen.flush()?;
             if self.process_keypress() {
                 break;
             }
