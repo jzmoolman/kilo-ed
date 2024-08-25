@@ -11,10 +11,10 @@ use kilo_ed::*;
 
 #[derive(Copy, Clone)]
 pub enum EditorKey {
-    ArrowLeft ,
-    ArrowRight,
-    ArrowUp,
-    ArrowDown,
+    Left ,
+    Right,
+    Up,
+    Down,
 }
 
 pub struct Editor {
@@ -22,20 +22,22 @@ pub struct Editor {
     keyboard: Keyboard,
     cursor: Position,
     keymap: HashMap<char, EditorKey>,
+    rows: Vec<String>,
 }
 
 impl Editor {
     pub fn new() -> Result<Self> {
         let mut keymap = HashMap::new();
-        keymap.insert('k', EditorKey::ArrowUp);
-        keymap.insert('j', EditorKey::ArrowDown);
-        keymap.insert('l', EditorKey::ArrowRight);
-        keymap.insert('h', EditorKey::ArrowLeft);
+        keymap.insert('k', EditorKey::Up);
+        keymap.insert('j', EditorKey::Down);
+        keymap.insert('l', EditorKey::Right);
+        keymap.insert('h', EditorKey::Left);
         Ok(Self {
             screen: Screen::new()?,
             keyboard: Keyboard {},
             cursor: Position::default(),
             keymap,
+            rows: vec!["Hello, world!".to_string()],
         })
     }
 
@@ -61,14 +63,20 @@ impl Editor {
                KeyEvent { code, .. } => match code {
                    KeyCode::Home => self.move_to_home(),
                    KeyCode::End => self.move_to_end(),
-                   KeyCode::Up => { self.move_cursor(EditorKey::ArrowUp); },
-                   KeyCode::Down => { self.move_cursor(EditorKey::ArrowDown); }
-                   KeyCode::Left => { self.move_cursor(EditorKey::ArrowLeft); }
-                   KeyCode::Right => { self.move_cursor(EditorKey::ArrowRight); }
+                   KeyCode::Up => { self.move_cursor(EditorKey::Up); },
+                   KeyCode::Down => { self.move_cursor(EditorKey::Down); }
+                   KeyCode::Left => { self.move_cursor(EditorKey::Left); }
+                   KeyCode::Right => { self.move_cursor(EditorKey::Right); }
                    KeyCode::PageUp | KeyCode::PageDown => {
                        let bounds = self.screen.bounds();
                        for _ in 0..bounds.y {
-                           self.move_cursor(if code == KeyCode::PageUp { EditorKey::ArrowUp } else { EditorKey::ArrowDown });
+                           self.move_cursor(
+                               if code == KeyCode::PageUp {
+                                   EditorKey::Up
+                               } else {
+                                   EditorKey::Down
+                               }
+                           );
                        }
                    }
                    _ => {}
@@ -86,7 +94,7 @@ impl Editor {
         terminal::enable_raw_mode()?;
         loop {
 
-            if self.screen.refresh().is_err() {
+            if self.refresh_screen().is_err() {
                 self.die("Clear Screen");
             }
             self.screen.move_to(&self.cursor)?;
@@ -120,16 +128,29 @@ impl Editor {
     pub fn move_cursor(&mut self, key: EditorKey)  {
         let bounds = self.screen.bounds();
         match key {
-            EditorKey::ArrowLeft => {
+            EditorKey::Left => {
                 self.cursor.x = self.cursor.x.saturating_sub(1);
             },
-            EditorKey::ArrowRight if self.cursor.x < bounds.x => self.cursor.x += 1,
-            EditorKey::ArrowUp => {
+            EditorKey::Right if self.cursor.x < bounds.x => self.cursor.x += 1,
+            EditorKey::Up => {
                 self.cursor.y  = self.cursor.y.saturating_sub(1);
             },
-            EditorKey::ArrowDown if self.cursor.y < bounds.y-1 => self.cursor.y +=1,
+            EditorKey::Down if self.cursor.y < bounds.y-1 => self.cursor.y +=1,
             _ => {}
         }
     }
+
+    pub fn refresh_screen(&mut self) -> Result<()> {
+        self.screen.clear()?;
+        self.screen.draw_row(&self.rows)
+
+        // self.stdout
+        //     .queue(cursor::MoveTo(0,0))?;
+        // Ok(())
+    }
+
+    // pub fn cursor_position(&self) -> Result<(u16, u16)> {
+    //     cursor::position()
+    // }k
 
 }

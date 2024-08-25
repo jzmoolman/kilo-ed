@@ -20,27 +20,34 @@ impl Screen {
         })
     }
 
-    pub fn draw_row(&mut self) -> Result<()> {
+    pub fn draw_row(&mut self, rows: &[String]) -> Result<()> {
         const VERSION: &str = env!("CARGO_PKG_VERSION");
         for row in 0..self.height {
-            if row == self.height /3 {
-                let mut welcome = format!("Kilo Editor -- version {VERSION}");
-                welcome.truncate(self.width as usize);
-                if welcome.len() < self.width as usize {
-                    let leftmost = (self.width as usize - welcome.len())/2;
-                    self.stdout.queue(cursor::MoveTo(0,row))?
-                        .queue(style::Print('~'))?
-                        .queue(cursor::MoveTo(leftmost as u16,row))?
+            if row as usize >= rows.len() {
+                if row == self.height /3 {
+                    let mut welcome = format!("Kilo Editor -- version {VERSION}");
+                    welcome.truncate(self.width as usize);
+                    if welcome.len() < self.width as usize {
+                        let leftmost = (self.width as usize - welcome.len())/2;
+                        self.stdout.queue(cursor::MoveTo(0,row))?
+                            .queue(style::Print('~'))?
+                            .queue(cursor::MoveTo(leftmost as u16,row))?
+                            .queue(style::Print(welcome))?;
+                    } else {
+                        self.stdout
+                        .queue(cursor::MoveTo(0,row))?
                         .queue(style::Print(welcome))?;
+                    }
                 } else {
                     self.stdout
-                    .queue(cursor::MoveTo(0,row))?
-                    .queue(style::Print(welcome))?;
+                        .queue(cursor::MoveTo(0, row))?
+                        .queue(style::Print('~'))?;
                 }
             } else {
+                let len = rows[0].len().min(self.width as usize);
                 self.stdout
-                    .queue(cursor::MoveTo(0, row))?
-                    .queue(style::Print('~'))?;
+                    .queue(cursor::MoveTo(0,row))?
+                    .queue(style::Print(rows[0][0..len].to_string()))?;
             }
         }
         Ok(())
@@ -57,25 +64,11 @@ impl Screen {
         self.stdout.flush()
     }
 
-    pub fn refresh(&mut self) -> Result<()> {
-
-        self.clear()?;
-        self.draw_row()?;
-        self.stdout
-            .queue(cursor::MoveTo(0,0))?;
-        Ok(())
-    }
-
-    // pub fn cursor_position(&self) -> Result<(u16, u16)> {
-    //     cursor::position()
-    // }
-
     pub fn move_to(&mut self, pos: &Position) -> Result<()> {
         self.stdout
             .queue(cursor::MoveTo(pos.x, pos.y))?;
         Ok(())
     }
-
 
     pub fn bounds(&self) -> Position {
         Position {
