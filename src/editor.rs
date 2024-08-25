@@ -98,15 +98,17 @@ impl Editor {
     }
 
     pub fn move_cursor(&mut self, key: EditorKey)  {
+        let bounds = self.screen.bounds();
         match key {
             EditorKey::ArrowLeft => {
                 self.cursor.x = self.cursor.x.saturating_sub(1);
             },
-            EditorKey::ArrowRight => self.cursor.x += 1,
+            EditorKey::ArrowRight if self.cursor.x <= bounds.x-1 => self.cursor.x += 1,
             EditorKey::ArrowUp => {
                 self.cursor.y  = self.cursor.y.saturating_sub(1);
             },
-            EditorKey::ArrowDown => self.cursor.y +=1,
+            EditorKey::ArrowDown if self.cursor.y < bounds.y-1 => self.cursor.y +=1,
+            _ => {}
         }
     }
 
