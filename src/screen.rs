@@ -24,10 +24,17 @@ impl Screen {
             if row == self.height /3 {
                 let mut welcome = format!("Kilo Editor -- version {VERSION}");
                 welcome.truncate(self.width as usize);
-                self.stdout
+                if welcome.len() < self.width as usize {
+                    let leftmost = (self.width as usize - welcome.len())/2;
+                    self.stdout.queue(cursor::MoveTo(0,row))?
+                        .queue(style::Print('~'))?
+                        .queue(cursor::MoveTo(leftmost as u16,row))?
+                        .queue(style::Print(welcome))?;
+                } else {
+                    self.stdout
                     .queue(cursor::MoveTo(0,row))?
                     .queue(style::Print(welcome))?;
-
+                }
             } else {
                 self.stdout
                     .queue(cursor::MoveTo(0, row))?
