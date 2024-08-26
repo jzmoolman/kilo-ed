@@ -20,7 +20,7 @@ impl Screen {
         })
     }
 
-    pub fn draw_row(&mut self, rows: &[String], rowoff: u16) -> Result<()> {
+    pub fn draw_row(&mut self, rows: &[String], rowoff: u16, coloff: u16) -> Result<()> {
         const VERSION: &str = env!("CARGO_PKG_VERSION");
         for row in 0..self.height {
             let filerow = (row  + rowoff) as usize;
@@ -45,10 +45,21 @@ impl Screen {
                         .queue(style::Print('~'))?;
                 }
             } else {
-                let len = rows[filerow].len().min(self.width as usize);
+                let mut len = rows[filerow].len();
+                if (len as u16) < coloff {
+                    continue;
+                }
+                len -= coloff as usize;
+                let start = coloff as usize;
+                let end = start +  if len > self.width as usize {
+                    self.width as usize
+                } else {
+                    len
+                };
+
                 self.stdout
                     .queue(cursor::MoveTo(0,row))?
-                    .queue(style::Print(rows[filerow as usize][0..len].to_string()))?;
+                    .queue(style::Print(rows[filerow as usize][start..end].to_string()))?;
             }
         }
         Ok(())
@@ -65,9 +76,9 @@ impl Screen {
         self.stdout.flush()
     }
 
-    pub fn move_to(&mut self, pos: &Position, rowoff: u16) -> Result<()> {
+    pub fn move_to(&mut self, pos: &Position, rowoff: u16, coloff: u16) -> Result<()> {
         self.stdout
-            .queue(cursor::MoveTo(pos.x, pos.y - rowoff))?;
+            .queue(cursor::MoveTo(pos.x - coloff, pos.y - rowoff))?;
         Ok(())
     }
 
