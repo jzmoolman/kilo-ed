@@ -24,7 +24,7 @@ impl Screen {
         const VERSION: &str = env!("CARGO_PKG_VERSION");
         for row in 0..self.height {
             if row as usize >= rows.len() {
-                if row == self.height /3 {
+                if rows.is_empty() && row == self.height /3 {
                     let mut welcome = format!("Kilo Editor -- version {VERSION}");
                     welcome.truncate(self.width as usize);
                     if welcome.len() < self.width as usize {

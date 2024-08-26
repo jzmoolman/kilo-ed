@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io:: Result;
+use std::path::Path;
 use crossterm::{terminal};
 use crossterm::event::{ KeyCode, KeyEvent, KeyModifiers};
 use errno::errno;
@@ -26,21 +27,39 @@ pub struct Editor {
 }
 
 impl Editor {
+    pub fn with_file <P: AsRef<Path>>(_filename: P) -> Result<Self> {
+        let first_line = std::fs::read_to_string(_filename)
+            .expect("Unable to open file")
+            .split('\n')
+            .next()
+            .unwrap()
+            .to_string();
+       Editor::build(first_line)
+    }
+
     pub fn new() -> Result<Self> {
+        Editor::build("")
+    }
+
+    fn build<T: Into<String>>(data :T) -> Result<Self> {
         let mut keymap = HashMap::new();
         keymap.insert('k', EditorKey::Up);
         keymap.insert('j', EditorKey::Down);
         keymap.insert('l', EditorKey::Right);
         keymap.insert('h', EditorKey::Left);
+        let data = data.into();
         Ok(Self {
             screen: Screen::new()?,
             keyboard: Keyboard {},
             cursor: Position::default(),
             keymap,
-            rows: vec!["Hello, world!".to_string()],
+            rows: if data.is_empty() {
+                Vec::new()
+            } else {
+                vec![data]
+            },
         })
     }
-
 
     // keyboard
     pub fn process_keypress(&mut self) -> Result<bool> {
