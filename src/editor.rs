@@ -24,6 +24,7 @@ pub struct Editor {
     cursor: Position,
     keymap: HashMap<char, EditorKey>,
     rows: Vec<String>,
+    rowoff: u16,
 }
 
 impl Editor {
@@ -56,6 +57,7 @@ impl Editor {
             } else {
                 Vec::from(data)
             },
+            rowoff: 0,
         })
     }
 
@@ -114,7 +116,7 @@ impl Editor {
             if self.refresh_screen().is_err() {
                 self.die("Clear Screen");
             }
-            self.screen.move_to(&self.cursor)?;
+            self.screen.move_to(&self.cursor, self.rowoff)?;
             self.screen.flush()?;
             if self.process_keypress()? {
                 break;
@@ -152,14 +154,15 @@ impl Editor {
             EditorKey::Up => {
                 self.cursor.y  = self.cursor.y.saturating_sub(1);
             },
-            EditorKey::Down if self.cursor.y < bounds.y-1 => self.cursor.y +=1,
+            EditorKey::Down if self.cursor.y < self.rows.len() as u16  => self.cursor.y +=1,
             _ => {}
         }
     }
 
     pub fn refresh_screen(&mut self) -> Result<()> {
+        self.scroll();
         self.screen.clear()?;
-        self.screen.draw_row(&self.rows)
+        self.screen.draw_row(&self.rows, self.rowoff)
 
         // self.stdout
         //     .queue(cursor::MoveTo(0,0))?;
@@ -168,6 +171,16 @@ impl Editor {
 
     // pub fn cursor_position(&self) -> Result<(u16, u16)> {
     //     cursor::position()
-    // }k
+    // }
+
+    fn scroll(&mut self) {
+        let bounds = self.screen.bounds();
+        if self.cursor.y < self.rowoff as u16  {
+            self.rowoff = self.cursor.y;
+        }
+        if self.cursor.y >= self.rowoff as u16 + bounds.y {
+            self.rowoff = self.cursor.y - bounds.y + 1;
+        }
+    }
 
 }
