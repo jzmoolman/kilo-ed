@@ -28,26 +28,24 @@ pub struct Editor {
 
 impl Editor {
     pub fn with_file <P: AsRef<Path>>(_filename: P) -> Result<Self> {
-        let first_line = std::fs::read_to_string(_filename)
+        let lines:Vec<String> = std::fs::read_to_string(_filename)
             .expect("Unable to open file")
             .split('\n')
-            .next()
-            .unwrap()
-            .to_string();
-       Editor::build(first_line)
+            .map(|x| x.into())
+            .collect();
+       Editor::build(&lines)
     }
 
     pub fn new() -> Result<Self> {
-        Editor::build("")
+        Editor::build(&[])
     }
 
-    fn build<T: Into<String>>(data :T) -> Result<Self> {
+    fn build(data: &[String]) -> Result<Self> {
         let mut keymap = HashMap::new();
         keymap.insert('k', EditorKey::Up);
         keymap.insert('j', EditorKey::Down);
         keymap.insert('l', EditorKey::Right);
         keymap.insert('h', EditorKey::Left);
-        let data = data.into();
         Ok(Self {
             screen: Screen::new()?,
             keyboard: Keyboard {},
@@ -56,7 +54,7 @@ impl Editor {
             rows: if data.is_empty() {
                 Vec::new()
             } else {
-                vec![data]
+                Vec::from(data)
             },
         })
     }

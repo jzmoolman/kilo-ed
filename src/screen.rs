@@ -44,10 +44,10 @@ impl Screen {
                         .queue(style::Print('~'))?;
                 }
             } else {
-                let len = rows[0].len().min(self.width as usize);
+                let len = rows[row as usize].len().min(self.width as usize);
                 self.stdout
                     .queue(cursor::MoveTo(0,row))?
-                    .queue(style::Print(rows[0][0..len].to_string()))?;
+                    .queue(style::Print(rows[row as usize][0..len].to_string()))?;
             }
         }
         Ok(())
