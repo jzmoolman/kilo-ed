@@ -148,19 +148,24 @@ impl Editor {
 
     pub fn move_cursor(&mut self, key: EditorKey)  {
 
-        let row_inx = if self.cursor.y  >= (self.rows.len() as u16) {
-            None
-        } else {
-            Some(self.cursor.y)
-        };
 
         match key {
             EditorKey::Left => {
+                if self.cursor.x != 0 {
+                    self.cursor.x -= 1;
+                } else if self.cursor.y > 0  {
+                    self.cursor.y -= 1;
+                    self.cursor.x = self.rows[self.cursor.y as usize].len() as u16;
+                }
                 self.cursor.x = self.cursor.x.saturating_sub(1);
             },
-            EditorKey::Right => if let Some(idx) = row_inx {
-                if (self.rows[idx as usize].len() as u16) > self.cursor.x {
-                    self.cursor.x += 1
+            EditorKey::Right => {
+
+                if self.cursor.y < self.rows.len() as u16 {
+                    let ind = self.cursor.y as usize;
+                    if self.rows[ind].len() as u16 > self.cursor.x {
+                        self.cursor.x += 1;
+                    }
                 }
             } ,
             EditorKey::Up => {
@@ -169,6 +174,14 @@ impl Editor {
             EditorKey::Down if self.cursor.y < self.rows.len() as u16  => self.cursor.y +=1,
             _ => {}
         }
+
+        let rowlen = if self.cursor.y  >= (self.rows.len() as u16) {
+            0
+        } else {
+            self.rows[self.cursor.y as usize].len() as u16
+        };
+        self.cursor.x = self.cursor.x.min(rowlen);
+
     }
 
     pub fn refresh_screen(&mut self) -> Result<()> {
