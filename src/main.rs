@@ -4,6 +4,7 @@ use io::Result;
 mod editor;
 mod keyboard;
 mod screen;
+mod row;
 
 use crate::editor::Editor;
 

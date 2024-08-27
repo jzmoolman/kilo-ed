@@ -5,8 +5,9 @@ use crossterm::{terminal};
 use crossterm::event::{ KeyCode, KeyEvent, KeyModifiers};
 use errno::errno;
 
-use crate::keyboard::Keyboard;
-use crate::screen::{Row, Screen};
+use crate::keyboard::*;
+use crate::screen::*;
+use crate::row::*;
 
 use kilo_ed::*;
 
@@ -19,6 +20,7 @@ pub enum EditorKey {
 }
 
 pub struct Editor {
+    filename: String,
     screen: Screen,
     keyboard: Keyboard,
     cursor: Position,
@@ -30,26 +32,28 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn with_file <P: AsRef<Path>>(_filename: P) -> Result<Self> {
-        let lines:Vec<String> = std::fs::read_to_string(_filename)
+    pub fn with_file <P: AsRef<Path> + ToString>(filename: P) -> Result<Self> {
+        let fn_filename = filename.to_string();
+        let lines:Vec<String> = std::fs::read_to_string(filename)
             .expect("Unable to open file")
             .split('\n')
             .map(|x| x.into())
             .collect();
-       Editor::build(&lines)
+       Editor::build(&lines, fn_filename)
     }
 
     pub fn new() -> Result<Self> {
-        Editor::build(&[])
+        Editor::build(&[], "")
     }
 
-    fn build(data: &[String]) -> Result<Self> {
+    fn build<T: Into<String>>(data: &[String], filename: T) -> Result<Self> {
         let mut keymap = HashMap::new();
         keymap.insert('k', EditorKey::Up);
         keymap.insert('j', EditorKey::Down);
         keymap.insert('l', EditorKey::Right);
         keymap.insert('h', EditorKey::Left);
         Ok(Self {
+            filename: filename.into(),
             screen: Screen::new()?,
             keyboard: Keyboard {},
             cursor: Position::default(),
@@ -97,6 +101,12 @@ impl Editor {
                    KeyCode::Right => { self.move_cursor(EditorKey::Right); }
                    KeyCode::PageUp | KeyCode::PageDown => {
                        let bounds = self.screen.bounds();
+                       match code {
+                           KeyCode::PageUp => self.cursor.y = self.rowoff,
+                           KeyCode::PageDown => self.cursor.y  = (self.rowoff + bounds.y-1).min(self.rows.len() as u16),
+                           _ => panic!("rust compiler broke")
+                       }
+
                        for _ in 0..bounds.y {
                            self.move_cursor(
                                if code == KeyCode::PageUp {
@@ -149,8 +159,9 @@ impl Editor {
     }
 
     pub fn move_to_end(&mut self) {
-        let position = self.screen.bounds();
-        self.cursor.x = position.x;
+        if self.cursor.y < self.rows.len() as u16 {
+            self.cursor.x = self.current_row_len();
+        }
     }
 
     pub fn move_cursor(&mut self, key: EditorKey)  {
@@ -160,7 +171,7 @@ impl Editor {
                     self.cursor.x -= 1;
                 } else if self.cursor.y > 0  {
                     self.cursor.y -= 1;
-                    self.cursor.x = self.rows[self.cursor.y as usize].len() as u16;
+                    self.cursor.x =  self.current_row_len();
                 }
                 self.cursor.x = self.cursor.x.saturating_sub(1);
             },
@@ -182,20 +193,15 @@ impl Editor {
             _ => {}
         }
 
-        let rowlen = if self.cursor.y  >= (self.rows.len() as u16) {
-            0
-        } else {
-            self.rows[self.cursor.y as usize].len() as u16
-        };
-        self.cursor.x = self.cursor.x.min(rowlen);
-
+        self.cursor.x = self.cursor.x.min(self.current_row_len());
     }
 
     pub fn refresh_screen(&mut self) -> Result<()> {
         self.scroll();
         self.screen.clear()?;
-        self.screen.draw_row(&self.rows, self.rowoff, self.coloff)
-
+        self.screen.draw_row(&self.rows, self.rowoff, self.coloff)?;
+        self.screen.draw_status_bar(format!("{:20} - {} lines ", self.filename, self.rows.len()),
+                                    format!("{}/{}",self.cursor.y, self.rows.len()))
     }
 
     fn scroll(&mut self) {
@@ -219,6 +225,14 @@ impl Editor {
         }
         if self.render_x >= self.coloff + bounds.x {
             self.coloff = self.render_x - bounds.x + 1
+        }
+    }
+
+    pub fn current_row_len(&self) -> u16 {
+        if self.cursor.y  >= (self.rows.len() as u16) {
+            0
+        } else {
+            self.rows[self.cursor.y as usize].len() as u16
         }
     }
 

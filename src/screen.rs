@@ -1,10 +1,10 @@
 use std::io::{stdout, Stdout, Write};
 use std::io::Result;
 use crossterm::{cursor, style, terminal, QueueableCommand};
-
+use crossterm::style::Color::{Black, White};
+use crossterm::style::{Colors, ResetColor};
 use kilo_ed::*;
-
-const KILO_TAB_STOP : usize =  8;
+use crate::row::*;
 
 pub struct Screen {
     stdout: Stdout,
@@ -12,55 +12,6 @@ pub struct Screen {
     height: u16,
 }
 
-pub struct Row {
-    chars: String,
-    render: String,
-}
-
-impl Row {
-    pub fn new(chars: String) -> Self {
-        let mut render = String::new();
-        let mut idx = 0;
-        for c in chars.chars() {
-            match c {
-                '\t' => {
-                    render.push(' ');
-                    idx += 1;
-                    while idx % KILO_TAB_STOP != 0 {
-                        render.push(' ');
-                        idx += 1;
-                    }
-                }
-                _ => {
-                    idx += 1;
-                    render.push(c);
-                },
-            }
-
-        }
-        Self {
-            chars,
-            render,
-        }
-    }
-    pub fn len(&self) -> usize {
-        self.chars.len()
-    }
-    pub fn render_len(&self) -> usize {
-        self.render.len()
-    }
-
-    pub fn cx_to_rx(&self, cx: u16) -> u16 {
-        let mut rx = 0;
-        for c in self.chars.chars().take(cx as usize) {
-            if c == '\t' {
-                rx += (KILO_TAB_STOP -1) - (rx % KILO_TAB_STOP);
-            }
-            rx += 1;
-        }
-        rx as u16
-    }
-}
 
 impl Screen {
     pub fn new() -> Result<Self> {
@@ -68,7 +19,7 @@ impl Screen {
         Ok(Self {
             stdout: stdout(),
             width,
-            height,
+            height: height-1,
         })
     }
 
@@ -114,6 +65,37 @@ impl Screen {
                     .queue(style::Print(rows[filerow].render[start..end].to_string()))?;
             }
         }
+        Ok(())
+    }
+
+    pub fn draw_status_bar<T: Into<String>>(&mut self, left: T, right: T) -> Result<()> {
+        let left = left.into();
+        let right = right.into();
+        let left_width = left.len();
+        let right_width = right.len();
+        let screen_width = self.width;
+
+        let status = format!("{left:0$}", left_width.min(screen_width as usize));
+        let mut rstatus = String::new();
+        if status.len() < screen_width as usize - right_width {
+            let mut len = status.len() as u16;
+            while len < screen_width {
+                if screen_width - len  < right_width as u16 {
+                    rstatus.push_str(right.as_str());
+                    break;
+                } else {
+                    rstatus.push(' ');
+                    len += 1;
+                }
+            }
+        }
+
+        // let status = format!("{:-20} - {count}", filename.into());
+        self.stdout
+            .queue(cursor::MoveTo(0,self.height-1))?
+            .queue(style::SetColors(Colors::new(Black, White)))?
+            .queue(style::Print(format!("{status}{rstatus}")))?
+            .queue(style::ResetColor)?;
         Ok(())
     }
 
