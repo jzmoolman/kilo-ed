@@ -80,7 +80,7 @@ impl Screen {
         if status.len() < screen_width as usize - right_width {
             let mut len = status.len() as u16;
             while len < screen_width {
-                if screen_width - len  < right_width as u16 {
+                if screen_width - len  == right_width as u16 {
                     rstatus.push_str(right.as_str());
                     break;
                 } else {
@@ -90,10 +90,10 @@ impl Screen {
             }
         }
 
-        // let status = format!("{:-20} - {count}", filename.into());
         self.stdout
-            .queue(cursor::MoveTo(0,self.height-1))?
+            .queue(cursor::MoveTo(0,self.height))?
             .queue(style::SetColors(Colors::new(Black, White)))?
+            // .queue(style::Print(format!("{}/{}", self.width, self.height)))?
             .queue(style::Print(format!("{status}{rstatus}")))?
             .queue(style::ResetColor)?;
         Ok(())
