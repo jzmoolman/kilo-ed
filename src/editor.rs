@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::fs::FileTimes;
 use std::io:: Result;
 use std::path::Path;
+use std::time::{Instant, Duration};
 use crossterm::{terminal};
 use crossterm::event::{ KeyCode, KeyEvent, KeyModifiers};
 use errno::errno;
@@ -21,6 +23,8 @@ pub enum EditorKey {
 
 pub struct Editor {
     filename: String,
+    status_msg: String,
+    status_time: Instant,
     screen: Screen,
     keyboard: Keyboard,
     cursor: Position,
@@ -54,6 +58,8 @@ impl Editor {
         keymap.insert('h', EditorKey::Left);
         Ok(Self {
             filename: filename.into(),
+            status_msg: String::from("HELP: Ctrl-Q = Quit"),
+            status_time: Instant::now(),
             screen: Screen::new()?,
             keyboard: Keyboard {},
             cursor: Position::default(),
@@ -200,8 +206,16 @@ impl Editor {
         self.scroll();
         self.screen.clear()?;
         self.screen.draw_row(&self.rows, self.rowoff, self.coloff)?;
+
+        if !self.status_msg.is_empty() {
+            if self.status_time.elapsed() > Duration::from_secs(5) {
+                self.status_msg.clear();
+            }
+        }
+
         self.screen.draw_status_bar(format!("{:20} - {} lines ", self.filename, self.rows.len()),
-                                    format!("{}/{}",self.cursor.y, self.rows.len()))
+                                    format!("{}/{}",self.cursor.y, self.rows.len()),
+        self.status_msg.clone())
     }
 
     fn scroll(&mut self) {
@@ -234,6 +248,11 @@ impl Editor {
         } else {
             self.rows[self.cursor.y as usize].len() as u16
         }
+    }
+
+    pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
+        self.status_time = Instant::now();
+        self.status_msg = msg.into();
     }
 
 

@@ -19,7 +19,7 @@ impl Screen {
         Ok(Self {
             stdout: stdout(),
             width,
-            height: height-1,
+            height: height-2,
         })
     }
 
@@ -68,7 +68,7 @@ impl Screen {
         Ok(())
     }
 
-    pub fn draw_status_bar<T: Into<String>>(&mut self, left: T, right: T) -> Result<()> {
+    pub fn draw_status_bar<T: Into<String>>(&mut self, left: T, right: T, help: T) -> Result<()> {
         let left = left.into();
         let right = right.into();
         let left_width = left.len();
@@ -90,12 +90,16 @@ impl Screen {
             }
         }
 
-        self.stdout
+        (self.stdout
             .queue(cursor::MoveTo(0,self.height))?
             .queue(style::SetColors(Colors::new(Black, White)))?
             // .queue(style::Print(format!("{}/{}", self.width, self.height)))?
             .queue(style::Print(format!("{status}{rstatus}")))?
-            .queue(style::ResetColor)?;
+            .queue(style::ResetColor)?
+            .queue(cursor::MoveTo(0,self.height+1))?)
+            .queue(style::Print(format!("{:1$}",help.into(), screen_width as usize)))?
+
+        ;
         Ok(())
     }
 
