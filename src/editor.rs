@@ -126,6 +126,7 @@ impl Editor {
                    KeyCode::Backspace => {
                        self.del_char();
                    },
+                   KeyCode::Enter => self.insert_newline(),
                    KeyCode::Esc => {},
                    KeyCode::Home => self.move_to_home(),
                    KeyCode::End => self.move_to_end(),
@@ -270,6 +271,18 @@ impl Editor {
         }
         self.rows.insert(at,Row::new(s));
         self.dirty = true;
+    }
+
+    pub fn insert_newline(&mut self) {
+        let row = self.cursor.y as usize;
+        if self.cursor.x == 0 {
+            self.insert_row(row, "".to_string());
+        } else {
+            let new_row_str = self.rows[row].split(self.cursor.x as usize);
+            self.insert_row(row+1, new_row_str);
+        }
+        self.cursor.y += 1;
+        self.cursor.x = 0;
     }
 
     pub fn del_row(&mut self, at: usize) -> Option<String> {
