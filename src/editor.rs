@@ -359,7 +359,12 @@ impl Editor {
 
     pub fn save(&mut self) {
         if self.filename.is_empty() {
-            self.filename = self.promnt("Save as".to_string());
+            if let Some(filename) = self.promnt("Save as".to_string()) {
+                self.filename = filename;
+            } else {
+                self.set_status_msg("Save aborted");
+                return;
+            };
         }
 
         let buf = self.rows_to_string();
@@ -372,7 +377,7 @@ impl Editor {
         }
     }
 
-    pub fn promnt(&mut self, prompt_str: String) -> String {
+    pub fn promnt(&mut self, prompt_str: String) -> Option<String> {
         let mut buffer = String::from("");
 
         loop {
@@ -382,11 +387,19 @@ impl Editor {
             if let Ok(c) = self.keyboard.read() {
                 match c {
                     KeyEvent {
+                        code: KeyCode::Esc,
+                        ..
+                    } =>  {
+                        self.set_status_msg("");
+                        return  None;
+                    },
+
+                    KeyEvent {
                         code: KeyCode::Enter,
                         modifiers: KeyModifiers::NONE,..
                     } => {
                         self.set_status_msg("");
-                        return buffer;
+                        return Some(buffer);
                     }
                     KeyEvent {
                         code: KeyCode::Char(c),
