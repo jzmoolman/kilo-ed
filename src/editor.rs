@@ -27,6 +27,7 @@ pub struct Editor {
     keyboard: Keyboard,
     cursor: Position,
     render_x: u16,
+    durty: bool,
     rows: Vec<Row>,
     rowoff: u16,
     coloff: u16,
@@ -50,12 +51,13 @@ impl Editor {
     fn build<T: Into<String>>(data: &[String], filename: T) -> Result<Self> {
         Ok(Self {
             filename: filename.into(),
-            status_msg: String::from("HELP: Ctrl-Q = Quit"),
+            status_msg: String::from("HELP: Ctrl-S = Save | Ctrl-Q = Quit"),
             status_time: Instant::now(),
             screen: Screen::new()?,
             keyboard: Keyboard {},
             cursor: Position::default(),
             render_x: 0,
+            durty: false,
             rows: if data.is_empty() {
                 Vec::new()
             } else {
@@ -78,13 +80,14 @@ impl Editor {
     pub fn process_keypress(&mut self) -> Result<bool> {
         if let Ok(c) = self.keyboard.read() {
             match c {
-               /*
-                * Control-q
-                */
                KeyEvent {
                    code: KeyCode::Char('q'),
                    modifiers: KeyModifiers::CONTROL, ..
                } => return Ok(true),
+                KeyEvent {
+                    code: KeyCode::Char('s'),
+                    modifiers: KeyModifiers::CONTROL, ..
+                } => self.save(),
                KeyEvent {
                     code: KeyCode::Char('h'),
                     modifiers: KeyModifiers::CONTROL, ..
@@ -205,13 +208,21 @@ impl Editor {
         self.cursor.x = self.cursor.x.min(self.current_row_len());
     }
 
+
     pub fn insert_char(&mut self, c: char) {
         if self.cursor.y == self.rows.len() as u16 {
-            self.rows.push(Row::new("".to_string()));
+            self.append_row(String::new());
         }
 
         self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c);
         self.cursor.x += 1;
+        //self.durty += 1
+        self.durty = true;
+    }
+    pub fn append_row(&mut self, s: String) {
+        self.rows.push(Row::new(s));
+        //self.durty += 1
+        self.durty = true;
     }
 
     pub fn refresh_screen(&mut self) -> Result<()> {
@@ -223,8 +234,14 @@ impl Editor {
                 self.status_msg.clear();
         }
 
-        self.screen.draw_status_bar(format!("{:20} - {} lines ", self.filename, self.rows.len()),
-                                    format!("{}/{}",self.cursor.y, self.rows.len()),
+        self.screen.draw_status_bar(
+            format!("{:20} - {} lines {}",
+                    if self.filename.is_empty() {"[No Name]"} else { &self.filename },
+                    self.rows.len(),
+                    if self.durty {
+                "{Modified}" } else { "" }
+            ),
+            format!("{}/{}",self.cursor.y, self.rows.len()),
         self.status_msg.clone())
     }
 
@@ -269,21 +286,25 @@ impl Editor {
         buf
     }
 
-    pub fn save(&self) {
+    pub fn save(&mut self) {
         if self.filename.is_empty() {
             return;
         }
 
         let buf = self.rows_to_string();
-        
-
+        let len = buf.len();
+        if std::fs::write(&self.filename, &buf).is_ok() {
+            self.set_status_msg(&format!("{len} bytes written to disk"));
+            self.durty = false;
+        } else {
+            self.set_status_msg(&format!("Can;t save I/O error: {}", errno()));
         }
     }
 
-    // pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
-    //     self.status_time = Instant::now();
-    //     self.status_msg = msg.into();
-    // }
+    pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
+        self.status_time = Instant::now();
+        self.status_msg = msg.into();
+    }
 
 
 
