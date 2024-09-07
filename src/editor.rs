@@ -241,10 +241,23 @@ impl Editor {
         if self.cursor.y == self.rows.len() as u16 {
             return;
         }
+        if self.cursor.x == 00 && self.cursor.y == 0 {
+            return;
+        }
 
-        if self.cursor.x > 0 &&  self.rows[self.cursor.y as usize].del_char(self.cursor.x as usize-1) {
-            self.cursor.x -= 1;
-            self.dirty = true;
+        let current_row = self.cursor.y as usize;
+        if self.cursor.x > 0 {
+            if self.rows[current_row].del_char(self.cursor.x as usize-1) {
+                self.cursor.x -= 1;
+                self.dirty = true;
+           }
+        } else {
+            self.cursor.x = self.rows[current_row-1].len() as u16;
+            if let Some(row) = self.del_row(current_row) {
+                self.rows[current_row-1].append_string(&row);
+                self.cursor.y -= 1;
+                self.dirty = true;
+            }
         }
     }
 
@@ -252,6 +265,16 @@ impl Editor {
         self.rows.push(Row::new(s));
         self.dirty = true;
     }
+
+    pub fn del_row(&mut self, at: usize) -> Option<String> {
+        if at > self.rows.len() {
+            None
+        } else{
+            self.dirty = true;
+            Some(self.rows.remove(at).chars)
+        }
+    }
+
 
     pub fn refresh_screen(&mut self) -> Result<()> {
         self.scroll();
