@@ -2,7 +2,7 @@ use std::io::{stdout, Stdout, Write};
 use std::io::Result;
 use crossterm::{cursor, style, terminal, QueueableCommand};
 use crossterm::style::Color::{Black, White};
-use crossterm::style::{Colors, ResetColor};
+use crossterm::style::{Colors };
 use kilo_ed::*;
 use crate::row::*;
 

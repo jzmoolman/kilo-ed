@@ -203,10 +203,8 @@ impl Editor {
         self.screen.clear()?;
         self.screen.draw_row(&self.rows, self.rowoff, self.coloff)?;
 
-        if !self.status_msg.is_empty() {
-            if self.status_time.elapsed() > Duration::from_secs(5) {
+        if !self.status_msg.is_empty() && self.status_time.elapsed() > Duration::from_secs(5) {
                 self.status_msg.clear();
-            }
         }
 
         self.screen.draw_status_bar(format!("{:20} - {} lines ", self.filename, self.rows.len()),
@@ -223,10 +221,10 @@ impl Editor {
             0
         };
 
-        if self.cursor.y < self.rowoff as u16  {
+        if self.cursor.y < self.rowoff  {
             self.rowoff = self.cursor.y;
         }
-        if self.cursor.y >= self.rowoff as u16 + bounds.y {
+        if self.cursor.y >= self.rowoff  + bounds.y {
             self.rowoff = self.cursor.y - bounds.y + 1;
         }
 
@@ -246,10 +244,10 @@ impl Editor {
         }
     }
 
-    pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
-        self.status_time = Instant::now();
-        self.status_msg = msg.into();
-    }
+    // pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
+    //     self.status_time = Instant::now();
+    //     self.status_msg = msg.into();
+    // }
 
 
 

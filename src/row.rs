@@ -40,7 +40,7 @@ impl Row {
         self.render = Row::render_row(&self.chars);
     }
 
-    pub fn render_row(chars: &String) -> String {
+    pub fn render_row(chars: &str) -> String {
         let mut render = String::new();
         let mut idx = 0;
         for c in chars.chars() {
