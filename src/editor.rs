@@ -78,14 +78,30 @@ impl Editor {
     pub fn process_keypress(&mut self) -> Result<bool> {
         if let Ok(c) = self.keyboard.read() {
             match c {
+               /*
+                * Control-q
+                */
                KeyEvent {
                    code: KeyCode::Char('q'),
                    modifiers: KeyModifiers::CONTROL, ..
                } => return Ok(true),
                KeyEvent {
-                   code: KeyCode::Char(key), ..
+                    code: KeyCode::Char('h'),
+                    modifiers: KeyModifiers::CONTROL, ..
+                } => {}, // TODO
+                KeyEvent {
+                    code: KeyCode::Char('l'),
+                    modifiers: KeyModifiers::CONTROL, ..
+                } => {}, // TODO
+
+               KeyEvent {
+                   code: KeyCode::Char(key),
+                   modifiers: KeyModifiers::NONE, ..
                } => self.insert_char(key),
                KeyEvent { code, .. } => match code {
+                   KeyCode::Delete => {},  // TODO
+                   KeyCode::Backspace => {},
+                   KeyCode::Esc => {},
                    KeyCode::Home => self.move_to_home(),
                    KeyCode::End => self.move_to_end(),
                    KeyCode::Up => { self.move_cursor(EditorKey::Up); },
