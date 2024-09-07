@@ -3,6 +3,7 @@ use std::path::Path;
 use std::time::{Instant, Duration};
 use crossterm::{terminal};
 use crossterm::event::{ KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::KeyCode::PageDown;
 use errno::errno;
 
 use crate::keyboard::*;
@@ -358,7 +359,7 @@ impl Editor {
 
     pub fn save(&mut self) {
         if self.filename.is_empty() {
-            return;
+            self.filename = self.promnt("Save as".to_string());
         }
 
         let buf = self.rows_to_string();
@@ -368,6 +369,37 @@ impl Editor {
             self.dirty = false;
         } else {
             self.set_status_msg(&format!("Can;t save I/O error: {}", errno()));
+        }
+    }
+
+    pub fn promnt(&mut self, prompt_str: String) -> String {
+        let mut buffer = String::from("");
+
+        loop {
+            self.set_status_msg(format!("{}: {}", prompt_str, buffer));
+            let _ = self.refresh_screen();
+            let _ = self.screen.flush();
+            if let Ok(c) = self.keyboard.read() {
+                match c {
+                    KeyEvent {
+                        code: KeyCode::Enter,
+                        modifiers: KeyModifiers::NONE,..
+                    } => {
+                        self.set_status_msg("");
+                        return buffer;
+                    }
+                    KeyEvent {
+                        code: KeyCode::Char(c),
+                        modifiers,
+                        ..
+                    } => {
+                        if modifiers == KeyModifiers::NONE || modifiers == KeyModifiers::SHIFT {
+                            buffer.push(c);
+                        }
+                    }
+                    _ =>  {}
+                }
+            };
         }
     }
 
