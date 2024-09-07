@@ -10,6 +10,7 @@ use crate::screen::*;
 use crate::row::*;
 
 use kilo_ed::*;
+const KILO_QUIT_TIMES: usize = 3;
 
 #[derive(Copy, Clone)]
 pub enum EditorKey {
@@ -27,10 +28,11 @@ pub struct Editor {
     keyboard: Keyboard,
     cursor: Position,
     render_x: u16,
-    durty: bool,
+    dirty: bool,
     rows: Vec<Row>,
     rowoff: u16,
     coloff: u16,
+    quit_time: usize,
 }
 
 impl Editor {
@@ -57,7 +59,7 @@ impl Editor {
             keyboard: Keyboard {},
             cursor: Position::default(),
             render_x: 0,
-            durty: false,
+            dirty: false,
             rows: if data.is_empty() {
                 Vec::new()
             } else {
@@ -73,6 +75,7 @@ impl Editor {
             },
             rowoff: 0,
             coloff: 0,
+            quit_time: KILO_QUIT_TIMES,
         })
     }
 
@@ -83,7 +86,18 @@ impl Editor {
                KeyEvent {
                    code: KeyCode::Char('q'),
                    modifiers: KeyModifiers::CONTROL, ..
-               } => return Ok(true),
+               } => {
+                   if self.dirty && self.quit_time > 0 {
+                       self.set_status_msg(
+                           format!("Warning!!!  File has unsaved changes.\
+                                   Press Ctrl-Q {} more time to quit", self.quit_time));
+                       self.quit_time -= 1;
+                       return Ok(false)
+                   } else  {
+                       return Ok(true)
+                   }
+
+               },
                 KeyEvent {
                     code: KeyCode::Char('s'),
                     modifiers: KeyModifiers::CONTROL, ..
@@ -155,6 +169,7 @@ impl Editor {
         }
         let _ = self.screen.clear();
         terminal::disable_raw_mode()?;
+        self.quit_time = KILO_QUIT_TIMES;
         Ok(())
     }
 
@@ -216,13 +231,11 @@ impl Editor {
 
         self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c);
         self.cursor.x += 1;
-        //self.durty += 1
-        self.durty = true;
+        self.dirty = true;
     }
     pub fn append_row(&mut self, s: String) {
         self.rows.push(Row::new(s));
-        //self.durty += 1
-        self.durty = true;
+        self.dirty = true;
     }
 
     pub fn refresh_screen(&mut self) -> Result<()> {
@@ -238,7 +251,7 @@ impl Editor {
             format!("{:20} - {} lines {}",
                     if self.filename.is_empty() {"[No Name]"} else { &self.filename },
                     self.rows.len(),
-                    if self.durty {
+                    if self.dirty {
                 "{Modified}" } else { "" }
             ),
             format!("{}/{}",self.cursor.y, self.rows.len()),
@@ -295,7 +308,7 @@ impl Editor {
         let len = buf.len();
         if std::fs::write(&self.filename, &buf).is_ok() {
             self.set_status_msg(&format!("{len} bytes written to disk"));
-            self.durty = false;
+            self.dirty = false;
         } else {
             self.set_status_msg(&format!("Can;t save I/O error: {}", errno()));
         }
