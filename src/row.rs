@@ -40,6 +40,15 @@ impl Row {
         self.render = Row::render_row(&self.chars);
     }
 
+    pub fn del_char(&mut self, at: usize) -> bool {
+        if at >=  self.chars.len() {
+           return false;
+        }
+        self.chars.remove(at);
+        self.render = Row::render_row(&self.chars);
+        true
+    }
+
     pub fn render_row(chars: &str) -> String {
         let mut render = String::new();
         let mut idx = 0;

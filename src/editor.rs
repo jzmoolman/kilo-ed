@@ -96,28 +96,32 @@ impl Editor {
                    } else  {
                        return Ok(true)
                    }
-
                },
-                KeyEvent {
+               KeyEvent {
                     code: KeyCode::Char('s'),
                     modifiers: KeyModifiers::CONTROL, ..
-                } => self.save(),
+               } => self.save(),
                KeyEvent {
-                    code: KeyCode::Char('h'),
-                    modifiers: KeyModifiers::CONTROL, ..
-                } => {}, // TODO
-                KeyEvent {
-                    code: KeyCode::Char('l'),
-                    modifiers: KeyModifiers::CONTROL, ..
-                } => {}, // TODO
+                   code: KeyCode::Char('l'),
+                   modifiers: KeyModifiers::CONTROL, ..
+               } => {}, // DO NOTHING
+               KeyEvent {
+                   code: KeyCode::Char('h'),
+                   modifiers: KeyModifiers::CONTROL, ..
+               } => self.del_char(),
 
                KeyEvent {
                    code: KeyCode::Char(key),
                    modifiers: KeyModifiers::NONE, ..
                } => self.insert_char(key),
                KeyEvent { code, .. } => match code {
-                   KeyCode::Delete => {},  // TODO
-                   KeyCode::Backspace => {},
+                   KeyCode::Delete => {
+                       self.move_cursor(EditorKey::Right);
+                       self.del_char();
+                   },
+                   KeyCode::Backspace => {
+                       self.del_char();
+                   },
                    KeyCode::Esc => {},
                    KeyCode::Home => self.move_to_home(),
                    KeyCode::End => self.move_to_end(),
@@ -143,7 +147,7 @@ impl Editor {
                            );
                        }
                    }
-                   _ => {}
+                   _ => { self.set_status_msg("NOTHING")}
                }
                 // _ => {}
             }
@@ -198,9 +202,8 @@ impl Editor {
                     self.cursor.x -= 1;
                 } else if self.cursor.y > 0  {
                     self.cursor.y -= 1;
-                    self.cursor.x =  self.current_row_len();
+                    self.cursor.x = self.current_row_len();
                 }
-                self.cursor.x = self.cursor.x.saturating_sub(1);
             },
             EditorKey::Right => {
                 if self.cursor.y < self.rows.len() as u16 {
@@ -233,6 +236,18 @@ impl Editor {
         self.cursor.x += 1;
         self.dirty = true;
     }
+
+    pub fn del_char(&mut self) {
+        if self.cursor.y == self.rows.len() as u16 {
+            return;
+        }
+
+        if self.cursor.x > 0 &&  self.rows[self.cursor.y as usize].del_char(self.cursor.x as usize-1) {
+            self.cursor.x -= 1;
+            self.dirty = true;
+        }
+    }
+
     pub fn append_row(&mut self, s: String) {
         self.rows.push(Row::new(s));
         self.dirty = true;
