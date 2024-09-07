@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::fs::FileTimes;
 use std::io:: Result;
 use std::path::Path;
 use std::time::{Instant, Duration};
@@ -29,7 +27,6 @@ pub struct Editor {
     keyboard: Keyboard,
     cursor: Position,
     render_x: u16,
-    keymap: HashMap<char, EditorKey>,
     rows: Vec<Row>,
     rowoff: u16,
     coloff: u16,
@@ -51,11 +48,6 @@ impl Editor {
     }
 
     fn build<T: Into<String>>(data: &[String], filename: T) -> Result<Self> {
-        let mut keymap = HashMap::new();
-        keymap.insert('k', EditorKey::Up);
-        keymap.insert('j', EditorKey::Down);
-        keymap.insert('l', EditorKey::Right);
-        keymap.insert('h', EditorKey::Left);
         Ok(Self {
             filename: filename.into(),
             status_msg: String::from("HELP: Ctrl-Q = Quit"),
@@ -64,16 +56,18 @@ impl Editor {
             keyboard: Keyboard {},
             cursor: Position::default(),
             render_x: 0,
-            keymap,
             rows: if data.is_empty() {
                 Vec::new()
             } else {
-                let mut vec = Vec::new();
+                let mut rows = Vec::new();
                 for line in  data {
                      let row = Row::new(line.to_string());
-                     vec.push(row);
+                     rows.push(row);
                 };
-                vec
+                if rows.last().unwrap().len() == 0 {
+                    rows.pop();
+                }
+                rows
             },
             rowoff: 0,
             coloff: 0,
@@ -89,15 +83,8 @@ impl Editor {
                    modifiers: KeyModifiers::CONTROL, ..
                } => return Ok(true),
                KeyEvent {
-                   code:KeyCode::Char(key), .. } => {
-                   match key {
-                       'h'| 'j' | 'k'| 'l' => {
-                           let c  = *self.keymap.get(&key).unwrap();
-                           self.move_cursor(c);
-                       }
-                       _ => {}
-                   }
-               }
+                   code: KeyCode::Char(key), ..
+               } => self.insert_char(key),
                KeyEvent { code, .. } => match code {
                    KeyCode::Home => self.move_to_home(),
                    KeyCode::End => self.move_to_end(),
@@ -200,6 +187,15 @@ impl Editor {
         }
 
         self.cursor.x = self.cursor.x.min(self.current_row_len());
+    }
+
+    pub fn insert_char(&mut self, c: char) {
+        if self.cursor.y == self.rows.len() as u16 {
+            self.rows.push(Row::new("".to_string()));
+        }
+
+        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c);
+        self.cursor.x += 1;
     }
 
     pub fn refresh_screen(&mut self) -> Result<()> {
