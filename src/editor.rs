@@ -260,6 +260,26 @@ impl Editor {
         }
     }
 
+    pub fn rows_to_string(&self) -> String {
+        let mut buf  = String::new();
+        for row in &self.rows {
+            buf.push_str(row.chars.as_str());
+            buf.push('\n');
+        }
+        buf
+    }
+
+    pub fn save(&self) {
+        if self.filename.is_empty() {
+            return;
+        }
+
+        let buf = self.rows_to_string();
+        
+
+        }
+    }
+
     // pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
     //     self.status_time = Instant::now();
     //     self.status_msg = msg.into();
