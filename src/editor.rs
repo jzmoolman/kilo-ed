@@ -230,10 +230,9 @@ impl Editor {
         self.cursor.x = self.cursor.x.min(self.current_row_len());
     }
 
-
     pub fn insert_char(&mut self, c: char) {
         if self.cursor.y == self.rows.len() as u16 {
-            self.append_row(String::new());
+            self.insert_row(self.cursor.y as usize, String::new());
         }
 
         self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c);
@@ -265,8 +264,11 @@ impl Editor {
         }
     }
 
-    pub fn append_row(&mut self, s: String) {
-        self.rows.push(Row::new(s));
+    pub fn insert_row(&mut self, at: usize, s: String) {
+        if at > self.rows.len() {
+           return;
+        }
+        self.rows.insert(at,Row::new(s));
         self.dirty = true;
     }
 
