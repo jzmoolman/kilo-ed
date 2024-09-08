@@ -479,14 +479,9 @@ impl Editor {
     }
 
    fn find_callback(&mut self, query: &str, event: PromptKey) {
-       if matches!(event, PromptKey::Escape | PromptKey::Enter) {
-           self.last_match = None;
-           self.direction = Forward;
-           return;
-       }
 
        match event {
-          PromptKey::Enter | PromptKey::Enter => {
+          PromptKey::Escape | PromptKey::Enter => {
               self.last_match = None;
               self.direction = Forward;
               return;
@@ -533,19 +528,17 @@ impl Editor {
        }
    }
 
-
     pub fn find(&mut self) {
         let save_cursor= self.cursor;
         let save_coloff = self.coloff;
         let save_rowoff= self.rowoff;
 
-        if let None =  self.prompt("Search(ESC/Arrows/Enter)".to_string(), Some(Editor::find_callback)) {
+        if self.prompt("Search(ESC/Arrows/Enter)".to_string(), Some(Editor::find_callback)).is_none() {
             self.cursor = save_cursor;
             self.coloff = save_coloff;
             self.rowoff = save_rowoff;
         };
     }
-
 
     pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
         self.status_time = Instant::now();
