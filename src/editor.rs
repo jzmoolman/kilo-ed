@@ -11,6 +11,14 @@ use crate::screen::*;
 use crate::row::*;
 
 use kilo_ed::*;
+
+
+enum PromptKey {
+    Enter,
+    Escape,
+    Char(char),
+}
+
 const KILO_QUIT_TIMES: usize = 3;
 
 #[derive(Copy, Clone)]
@@ -363,7 +371,7 @@ impl Editor {
 
     pub fn save(&mut self) {
         if self.filename.is_empty() {
-            if let Some(filename) = self.promnt("Save as".to_string()) {
+            if let Some(filename) = self.prompt("Save as".to_string(), None) {
                 self.filename = filename;
             } else {
                 self.set_status_msg("Save aborted");
@@ -381,7 +389,7 @@ impl Editor {
         }
     }
 
-    pub fn promnt(&mut self, prompt_str: String) -> Option<String> {
+    pub fn prompt(&mut self, prompt_str: String, _callback: Option<fn(&mut Editor, &String, PromptKey)>) -> Option<String> {
         let mut buffer = String::from("");
 
         loop {
@@ -389,11 +397,15 @@ impl Editor {
             let _ = self.refresh_screen();
             let _ = self.screen.flush();
             if let Ok(c) = self.keyboard.read() {
+                let mut prompt_key: Option<PromptKey> = None;
                 match c {
                     KeyEvent {
                         code: KeyCode::Esc,
                         ..
                     } =>  {
+                        if let Some(callback) = _callback {
+                            callback(self, &buffer, PromptKey::Escape);
+                        }
                         self.set_status_msg("");
                         return  None;
                     },
@@ -413,6 +425,9 @@ impl Editor {
                         code: KeyCode::Enter,
                         modifiers: KeyModifiers::NONE,..
                     } => {
+                        if let Some(callback) = _callback {
+                            callback(self, &buffer, PromptKey::Enter);
+                        }
                         self.set_status_msg("");
                         return Some(buffer);
                     }
@@ -422,26 +437,38 @@ impl Editor {
                         ..
                     } => {
                         if modifiers == KeyModifiers::NONE || modifiers == KeyModifiers::SHIFT {
+                            prompt_key = Some(PromptKey::Char(c));
                             buffer.push(c);
                         }
                     }
                     _ =>  {}
                 }
+                if let Some(callback) = _callback {
+                    if let Some(key) = prompt_key {
+                        callback(self, &buffer, key);
+                    }
+                }
             };
         }
     }
 
+   pub fn find_callback(&mut self, query: &String, event: PromptKey) {
+       if matches!(event, PromptKey::Escape | PromptKey::Escape) {
+           return;
+       }
+       for (i,row) in self.rows.iter().enumerate() {
+           if let Some(ind) = row.render.find(query.as_str()) {
+               self.cursor.y = i as u16;
+               self.cursor.x = row.rx_to_cx(ind);
+               self.rowoff = self.rows.len() as u16;
+               break;
+           }
+       }
+   }
+
+
     pub fn find(&mut self) {
-        if let Some(query) = self.promnt("Search(Esc to cancel)".to_string()) {
-            for (i,row) in self.rows.iter().enumerate() {
-                if let Some(ind)  = row.render.find(query.as_str()) {
-                    self.cursor.y = i as u16;
-                    self.cursor.x = row.rx_to_cx(ind);
-                    self.rowoff = self.rows.len() as u16;
-                    break;
-                }
-            }
-        }
+        self.prompt("Search(Esc to cancel)".to_string(), Some(Editor::find_callback));
     }
 
 
