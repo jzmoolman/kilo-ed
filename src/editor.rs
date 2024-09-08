@@ -389,7 +389,7 @@ impl Editor {
         }
     }
 
-    pub fn prompt(&mut self, prompt_str: String, _callback: Option<fn(&mut Editor, &String, PromptKey)>) -> Option<String> {
+    fn prompt(&mut self, prompt_str: String, _callback: Option<fn(&mut Editor, &str, PromptKey)>) -> Option<String> {
         let mut buffer = String::from("");
 
         loop {
@@ -452,12 +452,12 @@ impl Editor {
         }
     }
 
-   pub fn find_callback(&mut self, query: &String, event: PromptKey) {
-       if matches!(event, PromptKey::Escape | PromptKey::Escape) {
+   fn find_callback(&mut self, query: &str, event: PromptKey) {
+       if matches!(event, PromptKey::Escape | PromptKey::Enter) {
            return;
        }
        for (i,row) in self.rows.iter().enumerate() {
-           if let Some(ind) = row.render.find(query.as_str()) {
+           if let Some(ind) = row.render.find(query) {
                self.cursor.y = i as u16;
                self.cursor.x = row.rx_to_cx(ind);
                self.rowoff = self.rows.len() as u16;
