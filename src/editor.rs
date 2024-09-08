@@ -393,6 +393,17 @@ impl Editor {
                         self.set_status_msg("");
                         return  None;
                     },
+                    KeyEvent {
+                        code: KeyCode::Backspace,
+                        ..
+                    } | KeyEvent {
+                        code : KeyCode::Char('h'),
+                        modifiers: KeyModifiers::CONTROL,
+                        ..}
+
+                        =>  {
+                        buffer.pop();
+                    }
 
                     KeyEvent {
                         code: KeyCode::Enter,
