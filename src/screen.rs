@@ -2,7 +2,7 @@ use std::io::{stdout, Stdout, Write};
 use std::io::Result;
 use crossterm::{cursor, style, terminal, QueueableCommand};
 use crossterm::style::Color::{Black, White};
-use crossterm::style::{Colors };
+use crossterm::style::{Color, Colors, Print, SetForegroundColor};
 use kilo_ed::*;
 use crate::row::*;
 
@@ -11,7 +11,6 @@ pub struct Screen {
     width: u16,
     height: u16,
 }
-
 
 impl Screen {
     pub fn new() -> Result<Self> {
@@ -61,8 +60,27 @@ impl Screen {
                 };
 
                 self.stdout
-                    .queue(cursor::MoveTo(0,row))?
-                    .queue(style::Print(rows[filerow].render[start..end].to_string()))?;
+                    .queue(cursor::MoveTo(0,row))?;
+
+                let mut hl_iter = rows[filerow].hl[start..end].iter();
+                let mut hl = hl_iter.next();
+
+                for c in rows[filerow].render[start..end].chars() {
+                    let highlight = *hl.unwrap();
+                    if highlight == Highlight::Normal {
+                        self.stdout
+                            .queue(SetForegroundColor(Color::Reset))?
+                            .queue(Print(c))?;
+
+                    } else {
+                        let color = highlight.syntax_to_color();
+                        self.stdout
+                            .queue(SetForegroundColor(color))?
+                            .queue(Print(c))?
+                            .queue(SetForegroundColor(Color::Reset))?;
+                    }
+                    hl = hl_iter.next();
+                }
             }
         }
         Ok(())

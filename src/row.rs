@@ -1,17 +1,37 @@
+use crossterm::style::Color;
+
 const KILO_TAB_STOP : usize =  8;
 
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum Highlight {
+    Normal,
+    Number
+}
+
+impl  Highlight {
+    pub fn syntax_to_color(&self) -> Color {
+        match  self {
+            Highlight::Normal => Color::White,
+            Highlight::Number => Color::Red,
+        }
+    }
+}
 pub struct Row {
     pub chars: String,
     pub render: String,
+    pub hl:  Vec<Highlight>,
 }
 
 impl Row {
     pub fn new(chars: String) -> Self {
-        let render = Row::render_row(&chars);
-        Self {
+       let mut result = Self {
             chars,
-            render,
-        }
+            render: String::new(),
+            hl: Vec::new(),
+        };
+        result.render_row();
+        result
     }
     pub fn len(&self) -> usize {
         self.chars.len()
@@ -53,7 +73,7 @@ impl Row {
         } else {
             self.chars.insert(at, c);
         }
-        self.render = Row::render_row(&self.chars);
+        self.render_row();
     }
 
     pub fn del_char(&mut self, at: usize) -> bool {
@@ -61,24 +81,24 @@ impl Row {
            return false;
         }
         self.chars.remove(at);
-        self.render = Row::render_row(&self.chars);
+        self.render_row();
         true
     }
     pub fn split(&mut self, at: usize) -> String {
         let result = self.chars.split_off(at);
-        self.render = Row::render_row(&self.chars);
+        self.render_row();
         result
     }
 
     pub fn append_string(&mut self, s: &str) {
         self.chars.push_str(s);
-        self.render = Row::render_row(&self.chars);
+        self.render_row();
     }
 
-    pub fn render_row(chars: &str) -> String {
+    pub fn render_row(&mut self) {
         let mut render = String::new();
         let mut idx = 0;
-        for c in chars.chars() {
+        for c in self.chars.chars() {
             match c {
                 '\t' => {
                     render.push(' ');
@@ -94,6 +114,18 @@ impl Row {
                 },
             }
         }
-        render
+        self.render = render;
+        self.update_syntax();
+    }
+
+    fn update_syntax(&mut self) {
+        self.hl  = self.render.chars().map(|c|
+           if c.is_digit(10) {
+               Highlight::Number
+           } else {
+               Highlight::Normal
+           }
+        ).collect();
+
     }
 }

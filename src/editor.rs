@@ -544,5 +544,4 @@ impl Editor {
         self.status_time = Instant::now();
         self.status_msg = msg.into();
     }
-
 }
