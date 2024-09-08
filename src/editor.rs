@@ -102,6 +102,10 @@ impl Editor {
                     code: KeyCode::Char('s'),
                     modifiers: KeyModifiers::CONTROL, ..
                } => self.save(),
+                KeyEvent {
+                    code: KeyCode::Char('f'),
+                    modifiers: KeyModifiers::CONTROL, ..
+                } => self.find(),
                KeyEvent {
                    code: KeyCode::Char('l'),
                    modifiers: KeyModifiers::CONTROL, ..
@@ -426,6 +430,20 @@ impl Editor {
             };
         }
     }
+
+    pub fn find(&mut self) {
+        if let Some(query) = self.promnt("Search(Esc to cancel)".to_string()) {
+            for (i,row) in self.rows.iter().enumerate() {
+                if let Some(ind)  = row.render.find(query.as_str()) {
+                    self.cursor.y = i as u16;
+                    self.cursor.x = row.rx_to_cx(ind);
+                    self.rowoff = self.rows.len() as u16;
+                    break;
+                }
+            }
+        }
+    }
+
 
     pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
         self.status_time = Instant::now();
