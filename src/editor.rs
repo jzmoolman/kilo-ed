@@ -11,12 +11,19 @@ use crate::screen::*;
 use crate::row::*;
 
 use kilo_ed::*;
-
+use crate::editor::SearchDirection::{Backward, Forward};
 
 enum PromptKey {
     Enter,
     Escape,
+    Next,
+    Previous,
     Char(char),
+}
+
+enum SearchDirection {
+    Forward,
+    Backward,
 }
 
 const KILO_QUIT_TIMES: usize = 3;
@@ -42,6 +49,8 @@ pub struct Editor {
     rowoff: u16,
     coloff: u16,
     quit_time: usize,
+    last_match: Option<usize>,
+    direction: SearchDirection,
 }
 
 impl Editor {
@@ -85,6 +94,8 @@ impl Editor {
             rowoff: 0,
             coloff: 0,
             quit_time: KILO_QUIT_TIMES,
+            last_match: None,
+            direction: Forward,
         })
     }
 
@@ -432,6 +443,21 @@ impl Editor {
                         return Some(buffer);
                     }
                     KeyEvent {
+                        code: KeyCode::Left | KeyCode::Up,
+                        ..} => {
+                            if let Some(callback) = _callback {
+                               callback(self, &buffer, PromptKey::Previous);
+                        }
+                    }
+                    KeyEvent {
+                        code: KeyCode::Right | KeyCode::Down,
+                        ..} => {
+                        if let Some(callback) = _callback {
+                            callback(self, &buffer, PromptKey::Next);
+                        }
+                    }
+
+                    KeyEvent {
                         code: KeyCode::Char(c),
                         modifiers,
                         ..
@@ -454,12 +480,53 @@ impl Editor {
 
    fn find_callback(&mut self, query: &str, event: PromptKey) {
        if matches!(event, PromptKey::Escape | PromptKey::Enter) {
+           self.last_match = None;
+           self.direction = Forward;
            return;
        }
-       for (i,row) in self.rows.iter().enumerate() {
-           if let Some(ind) = row.render.find(query) {
-               self.cursor.y = i as u16;
-               self.cursor.x = row.rx_to_cx(ind);
+
+       match event {
+          PromptKey::Enter | PromptKey::Enter => {
+              self.last_match = None;
+              self.direction = Forward;
+              return;
+          }
+          PromptKey::Next => self.direction = Forward,
+          PromptKey::Previous => self.direction = Backward,
+          _ => {
+              self.last_match = None;
+              self.direction = Forward;
+          }
+       }
+
+       let mut current = if let Some(ind) = self.last_match {
+           ind
+       } else {
+           self.direction = Forward;
+           0
+       };
+
+       for _ in 0..self.rows.len() {
+           match self.direction {
+               Forward => {
+                   current += 1;
+                   if current >= self.rows.len() {
+                       current = 0;
+                   }
+               },
+               Backward => {
+                   if current == 0 {
+                       current = self.rows.len()-1;
+                   } else {
+                       current -= 1;
+                   }
+               }
+           }
+
+           if let Some(ind) = self.rows[current].render.find(query) {
+               self.last_match = Some(current);
+               self.cursor.y = current as u16;
+               self.cursor.x = self.rows[current].rx_to_cx(ind);
                self.rowoff = self.rows.len() as u16;
                break;
            }
@@ -472,7 +539,7 @@ impl Editor {
         let save_coloff = self.coloff;
         let save_rowoff= self.rowoff;
 
-        if let None =  self.prompt("Search(Esc to cancel)".to_string(), Some(Editor::find_callback)) {
+        if let None =  self.prompt("Search(ESC/Arrows/Enter)".to_string(), Some(Editor::find_callback)) {
             self.cursor = save_cursor;
             self.coloff = save_coloff;
             self.rowoff = save_rowoff;
@@ -484,7 +551,5 @@ impl Editor {
         self.status_time = Instant::now();
         self.status_msg = msg.into();
     }
-
-
 
 }
