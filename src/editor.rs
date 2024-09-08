@@ -468,7 +468,15 @@ impl Editor {
 
 
     pub fn find(&mut self) {
-        self.prompt("Search(Esc to cancel)".to_string(), Some(Editor::find_callback));
+        let save_cursor= self.cursor;
+        let save_coloff = self.coloff;
+        let save_rowoff= self.rowoff;
+
+        if let None =  self.prompt("Search(Esc to cancel)".to_string(), Some(Editor::find_callback)) {
+            self.cursor = save_cursor;
+            self.coloff = save_coloff;
+            self.rowoff = save_rowoff;
+        };
     }
 
 
