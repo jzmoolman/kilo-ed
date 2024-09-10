@@ -127,14 +127,14 @@ impl Row {
         self.hl = vec![Highlight::Normal; self.render.len()];
 
         let mut prev_sep = false;
-        let mut row_iter = self.render.chars().enumerate();
-        while let Some((i,c)) = row_iter.next() {
+        let row_iter = self.render.chars().enumerate();
+        for (i,c) in row_iter {
             let prev_hl = if i > 0 {
                self.hl[i-1]
             } else {
                 Highlight::Normal
             };
-            if c.is_digit(10) &&( prev_sep || prev_hl == Highlight::Number)
+            if c.is_ascii_digit() &&( prev_sep || prev_hl == Highlight::Number)
                 || (c == '.' && prev_hl == Highlight::Number) {
 
                 self.hl[i] = Highlight::Number;
@@ -165,10 +165,10 @@ impl Row {
 
 
 
-trait Separator { fn is_separator(self) -> bool; }
+trait Separator { fn is_separator(&self) -> bool; }
 
 impl Separator for char {
-    fn is_separator(self) -> bool {
+    fn is_separator(&self) -> bool {
         matches!(self, ' ' | ',' | '.' | '(' | ')' | '+' | '-' | '/' | '*' | '=' | '~' |
           '%' | '<' | '>' | '[' | ']' | '{' | '}' | ';')
     }

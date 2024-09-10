@@ -3,12 +3,12 @@ use std::path::Path;
 use std::time::{Instant, Duration};
 use crossterm::{terminal};
 use crossterm::event::{ KeyCode, KeyEvent, KeyModifiers};
-use crossterm::event::KeyCode::PageDown;
 use errno::errno;
 
 use crate::keyboard::*;
 use crate::screen::*;
 use crate::row::*;
+use crate::editor_syntax::*;
 
 use kilo_ed::*;
 use crate::editor::SearchDirection::{Backward, Forward};
@@ -52,6 +52,8 @@ pub struct Editor {
     last_match: Option<usize>,
     direction: SearchDirection,
     saved_hl: Option<usize>,
+    hldb: Vec<EditorSyntax>,
+
 }
 
 impl Editor {
@@ -98,6 +100,7 @@ impl Editor {
             last_match: None,
             direction: Forward,
             saved_hl: None,
+            hldb: EditorSyntax::new(),
         })
     }
 

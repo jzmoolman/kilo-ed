@@ -5,6 +5,7 @@ mod editor;
 mod keyboard;
 mod screen;
 mod row;
+mod editor_syntax;
 
 use crate::editor::Editor;
 
