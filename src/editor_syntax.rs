@@ -9,7 +9,7 @@ pub mod highlightflags {
 pub struct EditorSyntax {
     pub filetype: String,
     pub filematch: Vec<String>,
-    pub flag: EditorFlags,
+    pub flags: EditorFlags,
 }
 
 impl EditorSyntax {
@@ -17,7 +17,7 @@ impl EditorSyntax {
         vec![EditorSyntax {
             filetype: "c".to_string(),
             filematch: vec!["c".to_string(), ".h".to_string(), ".cpp".to_string()],
-            flag: highlightflags::NUMBERS,
+            flags: highlightflags::NUMBERS,
         }]
     }
 }

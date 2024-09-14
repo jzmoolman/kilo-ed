@@ -74,7 +74,15 @@ impl Editor {
     fn build<T: Into<String>>(data: &[String], filename: T) -> Result<Self> {
         let filename: String = filename.into();
         let hldb = EditorSyntax::new();
-        let syntax = Editor::select_syntax_highlight(&hldb, filename.as_str());
+        let syntax = Editor::find_highlight(&hldb, filename.as_str());
+        // let ind = syntax.unwrap_or(0);
+        let flags = if let Some(ind) = syntax{
+            hldb[ind].flags
+        } else {
+            0
+        };
+
+
         Ok(Self {
             filename,
             status_msg: String::from("HELP: Ctrl-S = Save | Ctrl-Q = Quit"),
@@ -89,7 +97,7 @@ impl Editor {
             } else {
                 let mut rows = Vec::new();
                 for line in  data {
-                     let row = Row::new(line.to_string(), 0);
+                     let row = Row::new(line.to_string(), flags);
                      rows.push(row);
                 };
                 if rows.last().unwrap().len() == 0 {
@@ -265,16 +273,25 @@ impl Editor {
     }
 
     pub fn insert_char(&mut self, c: char) {
+
+        let flags = if let Some(ind) = self.syntax{
+            self.hldb[ind].flags
+        } else {
+            0
+        };
+        eprintln!("{c} {}", flags as usize);
+
         if self.cursor.y == self.rows.len() as u16 {
             self.insert_row(self.cursor.y as usize, String::new());
         }
 
-        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c, 0);
+        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c, flags);
         self.cursor.x += 1;
         self.dirty = true;
     }
 
     pub fn del_char(&mut self) {
+
         if self.cursor.y == self.rows.len() as u16 {
             return;
         }
@@ -282,16 +299,22 @@ impl Editor {
             return;
         }
 
+        let flags = if let Some(ind) = self.syntax{
+            self.hldb[ind].flags
+        } else {
+            0
+        };
+
         let current_row = self.cursor.y as usize;
         if self.cursor.x > 0 {
-            if self.rows[current_row].del_char(self.cursor.x as usize-1,0) {
+            if self.rows[current_row].del_char(self.cursor.x as usize-1,flags) {
                 self.cursor.x -= 1;
                 self.dirty = true;
            }
         } else {
             self.cursor.x = self.rows[current_row-1].len() as u16;
             if let Some(row) = self.del_row(current_row) {
-                self.rows[current_row-1].append_string(&row,0);
+                self.rows[current_row-1].append_string(&row,flags);
                 self.cursor.y -= 1;
                 self.dirty = true;
             }
@@ -299,19 +322,30 @@ impl Editor {
     }
 
     pub fn insert_row(&mut self, at: usize, s: String) {
+        let flags = if let Some(ind) = self.syntax{
+            self.hldb[ind].flags
+        } else {
+            0
+        };
         if at > self.rows.len() {
            return;
         }
-        self.rows.insert(at,Row::new(s,0));
+        self.rows.insert(at,Row::new(s,flags));
         self.dirty = true;
     }
 
     pub fn insert_newline(&mut self) {
+        let flags = if let Some(ind) = self.syntax{
+            self.hldb[ind].flags
+        } else {
+            0
+        };
+
         let row = self.cursor.y as usize;
         if self.cursor.x == 0 {
             self.insert_row(row, "".to_string());
         } else {
-            let new_row_str = self.rows[row].split(self.cursor.x as usize, 0);
+            let new_row_str = self.rows[row].split(self.cursor.x as usize, flags);
             self.insert_row(row+1, new_row_str);
         }
         self.cursor.y += 1;
@@ -403,6 +437,9 @@ impl Editor {
                 self.set_status_msg("Save aborted");
                 return;
             };
+            self.select_syntax_highlight();
+            //self.syntax = Editor::find_syntax(&self.hldb, &self.filename);
+            // self.syntax = Editor::select_syntax_highlight(&self.hldb, &self.filename);
         }
 
         let buf = self.rows_to_string();
@@ -566,7 +603,24 @@ impl Editor {
         self.status_msg = msg.into();
     }
 
-    fn select_syntax_highlight(hldb: &[EditorSyntax], filename: &str) -> Option<usize>{
+    fn select_syntax_highlight(&mut self) {
+        let old_syntax = self.syntax;
+        self.syntax = Editor::find_highlight(&self.hldb, self.filename.as_str());
+        if self.syntax != old_syntax {
+            let flags = if let Some(ind) = self.syntax{
+                self.hldb[ind].flags
+            } else {
+                0
+            };
+
+            for row in self.rows.iter_mut() {
+                row.update_syntax(flags);
+            }
+        }
+    }
+
+
+    fn find_highlight(hldb: &[EditorSyntax], filename: &str) -> Option<usize>{
         if filename.is_empty() {
             return None;
         }

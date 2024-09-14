@@ -125,7 +125,7 @@ impl Row {
         self.update_syntax(flags);
     }
 
-    fn update_syntax(&mut self, flags: EditorFlags) {
+    pub fn update_syntax(&mut self, flags: EditorFlags) {
         self.hl = vec![Highlight::Normal; self.render.len()];
         if flags == 0 {
             return
