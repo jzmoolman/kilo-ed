@@ -4,7 +4,6 @@ use std::time::{Instant, Duration};
 use crossterm::{terminal};
 use crossterm::event::{ KeyCode, KeyEvent, KeyModifiers};
 use errno::errno;
-
 use crate::keyboard::*;
 use crate::screen::*;
 use crate::row::*;
@@ -73,8 +72,11 @@ impl Editor {
     }
 
     fn build<T: Into<String>>(data: &[String], filename: T) -> Result<Self> {
+        let filename: String = filename.into();
+        let hldb = EditorSyntax::new();
+        let syntax = Editor::select_syntax_highlight(&hldb, filename.as_str());
         Ok(Self {
-            filename: filename.into(),
+            filename,
             status_msg: String::from("HELP: Ctrl-S = Save | Ctrl-Q = Quit"),
             status_time: Instant::now(),
             screen: Screen::new()?,
@@ -87,7 +89,7 @@ impl Editor {
             } else {
                 let mut rows = Vec::new();
                 for line in  data {
-                     let row = Row::new(line.to_string());
+                     let row = Row::new(line.to_string(), 0);
                      rows.push(row);
                 };
                 if rows.last().unwrap().len() == 0 {
@@ -101,8 +103,8 @@ impl Editor {
             last_match: None,
             direction: Forward,
             saved_hl: None,
-            hldb: EditorSyntax::new(),
-            syntax: None,
+            hldb,
+            syntax,
         })
     }
 
@@ -267,7 +269,7 @@ impl Editor {
             self.insert_row(self.cursor.y as usize, String::new());
         }
 
-        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c);
+        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c, 0);
         self.cursor.x += 1;
         self.dirty = true;
     }
@@ -282,14 +284,14 @@ impl Editor {
 
         let current_row = self.cursor.y as usize;
         if self.cursor.x > 0 {
-            if self.rows[current_row].del_char(self.cursor.x as usize-1) {
+            if self.rows[current_row].del_char(self.cursor.x as usize-1,0) {
                 self.cursor.x -= 1;
                 self.dirty = true;
            }
         } else {
             self.cursor.x = self.rows[current_row-1].len() as u16;
             if let Some(row) = self.del_row(current_row) {
-                self.rows[current_row-1].append_string(&row);
+                self.rows[current_row-1].append_string(&row,0);
                 self.cursor.y -= 1;
                 self.dirty = true;
             }
@@ -300,7 +302,7 @@ impl Editor {
         if at > self.rows.len() {
            return;
         }
-        self.rows.insert(at,Row::new(s));
+        self.rows.insert(at,Row::new(s,0));
         self.dirty = true;
     }
 
@@ -309,7 +311,7 @@ impl Editor {
         if self.cursor.x == 0 {
             self.insert_row(row, "".to_string());
         } else {
-            let new_row_str = self.rows[row].split(self.cursor.x as usize);
+            let new_row_str = self.rows[row].split(self.cursor.x as usize, 0);
             self.insert_row(row+1, new_row_str);
         }
         self.cursor.y += 1;
@@ -562,5 +564,26 @@ impl Editor {
     pub fn set_status_msg<T: Into<String>>(&mut self, msg: T) {
         self.status_time = Instant::now();
         self.status_msg = msg.into();
+    }
+
+    fn select_syntax_highlight(hldb: &[EditorSyntax], filename: &str) -> Option<usize>{
+        if filename.is_empty() {
+            return None;
+        }
+
+        match filename.split(".").collect::<Vec<&str>>().last() {
+            None => None,
+            Some(ext ) => {
+                for (j,entry ) in hldb.iter().enumerate() {
+                    for ext_ in entry.filematch.iter() {
+                        eprintln!("{ext}:{ext_}");
+                        if ext == ext_ {
+                            return Some(j);
+                        }
+                    }
+                }
+                None
+            }
+        }
     }
 }
