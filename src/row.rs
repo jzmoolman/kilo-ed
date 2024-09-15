@@ -9,6 +9,8 @@ const KILO_TAB_STOP : usize =  8;
 pub enum Highlight {
     Normal,
     Number,
+    String,
+    Comment,
     Match,
 }
 
@@ -18,6 +20,8 @@ impl  Highlight {
             Highlight::Normal => Color::White,
             Highlight::Number => Color::Red,
             Highlight::Match => Color::Blue,
+            Highlight::String => Color::Magenta,
+            Highlight::Comment => Color::Cyan,
         }
     }
 }
@@ -132,13 +136,41 @@ impl Row {
         }
 
         let mut prev_sep = false;
-        let row_iter = self.render.chars().enumerate();
-        for (i, c) in row_iter {
+        let mut row_iter = self.render.chars().enumerate();
+        let mut in_string: Option<char> = None;
+        while let Some((i, c)) = row_iter.next() {
             let prev_hl = if i > 0 {
                 self.hl[i - 1]
             } else {
                 Highlight::Normal
             };
+
+            if in_string.is_none() && c == '/' && i < self.chars.len() - 1 && &self.chars[i..i + 2] == "//" {
+                for j in i..self.chars.len() {
+                    self.hl[j] = Highlight::Comment;
+                }
+            }
+
+            if flags & highlightflags::STRINGS != 0 {
+                if let Some(in_string_) = in_string {
+                    self.hl[i] = Highlight::String;
+                    if c == '\\' && i + 1 < self.chars.len() {
+                        self.hl[i + 1] = Highlight::String;
+                        row_iter.nth(1);
+                        continue;
+                    }
+                    if c == in_string_ {
+                        in_string = None;
+                    }
+                    prev_sep = true;
+                    continue;
+                } else {
+                    if c == '"' || c == '\'' {
+                        in_string = Some(c);
+                        self.hl[i] = Highlight::String;
+                    }
+                }
+            }
 
             if flags & highlightflags::NUMBERS != 0 &&
                 (c.is_ascii_digit() && (prev_sep || prev_hl == Highlight::Number)
