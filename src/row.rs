@@ -33,14 +33,14 @@ pub struct Row {
 }
 
 impl Row {
-    pub fn new(chars: String, flags: EditorFlags) -> Self {
+    pub fn new(chars: String, syntax: Option<&EditorSyntax>) -> Self {
        let mut result = Self {
             chars,
             render: String::new(),
             hl: Vec::new(),
             saved_hl: Vec::new(),
         };
-        result.render_row(flags);
+        result.render_row(syntax);
         result
     }
     pub fn len(&self) -> usize {
@@ -77,36 +77,36 @@ impl Row {
     }
 
 
-    pub fn insert_char(&mut self, at: usize, c: char, flags: EditorFlags) {
+    pub fn insert_char(&mut self, at: usize, c: char, syntax: Option<&EditorSyntax>) {
         if at >= self.chars.len()   {
             self.chars.push(c)
         } else {
             self.chars.insert(at, c);
         }
-        self.render_row(flags);
+        self.render_row(syntax);
     }
 
-    pub fn del_char(&mut self, at: usize, flags: EditorFlags) -> bool {
+    pub fn del_char(&mut self, at: usize, syntax: Option<&EditorSyntax>) -> bool {
         if at >=  self.chars.len() {
            return false;
         }
         self.chars.remove(at);
-        self.render_row(flags);
+        self.render_row(syntax);
         true
     }
 
-    pub fn split(&mut self, at: usize, flags: EditorFlags) -> String {
+    pub fn split(&mut self, at: usize, syntax:  Option<&EditorSyntax>) -> String {
         let result = self.chars.split_off(at);
-        self.render_row(flags);
+        self.render_row(syntax);
         result
     }
 
-    pub fn append_string(&mut self, s: &str, flags: EditorFlags) {
+    pub fn append_string(&mut self, s: &str, syntax: Option<&EditorSyntax>) {
         self.chars.push_str(s);
-        self.render_row(flags);
+        self.render_row(syntax);
     }
 
-    pub fn render_row(&mut self, flags:EditorFlags) {
+    pub fn render_row(&mut self, syntax: Option<&EditorSyntax>) {
         let mut render = String::new();
         let mut idx = 0;
         for c in self.chars.chars() {
@@ -126,18 +126,23 @@ impl Row {
             }
         }
         self.render = render;
-        self.update_syntax(flags);
+        self.update_syntax(syntax);
     }
 
-    pub fn update_syntax(&mut self, flags: EditorFlags) {
+    pub fn update_syntax(&mut self, syntax: Option<&EditorSyntax>) {
         self.hl = vec![Highlight::Normal; self.render.len()];
-        if flags == 0 {
+        let syntax = if let Some(syntax) = syntax {
+            syntax
+        } else {
             return
-        }
+        };
 
         let mut prev_sep = false;
         let mut row_iter = self.render.chars().enumerate();
         let mut in_string: Option<char> = None;
+        let scs = &syntax.singleline_comment_start;
+
+
         while let Some((i, c)) = row_iter.next() {
             let prev_hl = if i > 0 {
                 self.hl[i - 1]
@@ -145,13 +150,19 @@ impl Row {
                 Highlight::Normal
             };
 
-            if in_string.is_none() && c == '/' && i < self.chars.len() - 1 && &self.chars[i..i + 2] == "//" {
-                for j in i..self.chars.len() {
-                    self.hl[j] = Highlight::Comment;
+            if in_string.is_none() && scs.is_some() {
+                if let Some(scs) = scs {
+                    let len = scs.len();
+                    if self.chars.len() - i >= len &&
+                        &self.chars[i..i + len] == scs {
+                        for j in i..self.chars.len() {
+                            self.hl[j] = Highlight::Comment;
+                        }
+                    }
                 }
             }
 
-            if flags & highlightflags::STRINGS != 0 {
+            if syntax.flags & highlightflags::STRINGS != 0 {
                 if let Some(in_string_) = in_string {
                     self.hl[i] = Highlight::String;
                     if c == '\\' && i + 1 < self.chars.len() {
@@ -172,7 +183,7 @@ impl Row {
                 }
             }
 
-            if flags & highlightflags::NUMBERS != 0 &&
+            if syntax.flags & highlightflags::NUMBERS != 0 &&
                 (c.is_ascii_digit() && (prev_sep || prev_hl == Highlight::Number)
                     || (c == '.' && prev_hl == Highlight::Number)) {
                 self.hl[i] = Highlight::Number;

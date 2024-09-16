@@ -6,7 +6,7 @@ pub mod highlightflags {
     pub const NUMBERS : u32 = 1<<0;
     pub const STRINGS : u32 = 1<<1;
 }
-
+#[derive(Clone)]
 pub struct EditorSyntax {
     pub filetype: String,
     pub filematch: Vec<String>,

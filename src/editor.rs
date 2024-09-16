@@ -52,8 +52,7 @@ pub struct Editor {
     direction: SearchDirection,
     saved_hl: Option<usize>,
     hldb: Vec<EditorSyntax>,
-    syntax: Option<usize>,   // index into hldb
-
+    syntax_ind: Option<usize>,   // index into hldb
 }
 
 impl Editor {
@@ -74,14 +73,14 @@ impl Editor {
     fn build<T: Into<String>>(data: &[String], filename: T) -> Result<Self> {
         let filename: String = filename.into();
         let hldb = EditorSyntax::new();
-        let syntax = Editor::find_highlight(&hldb, filename.as_str());
-        // let ind = syntax.unwrap_or(0);
-        let flags = if let Some(ind) = syntax{
-            hldb[ind].flags
+        let syntax_ind = Editor::find_highlight(&hldb, filename.as_str());
+        let syntax_: EditorSyntax;
+        let syntax = if let Some(ind) = syntax_ind  {
+            syntax_ = hldb[ind].clone();
+            Some(&syntax_)
         } else {
-            0
+            None
         };
-
 
         Ok(Self {
             filename,
@@ -97,7 +96,7 @@ impl Editor {
             } else {
                 let mut rows = Vec::new();
                 for line in  data {
-                     let row = Row::new(line.to_string(), flags);
+                     let row = Row::new(line.to_string(), syntax);
                      rows.push(row);
                 };
                 if rows.last().unwrap().len() == 0 {
@@ -112,7 +111,7 @@ impl Editor {
             direction: Forward,
             saved_hl: None,
             hldb,
-            syntax,
+            syntax_ind,
         })
     }
 
@@ -273,19 +272,19 @@ impl Editor {
     }
 
     pub fn insert_char(&mut self, c: char) {
-
-        let flags = if let Some(ind) = self.syntax{
-            self.hldb[ind].flags
+        let syntax = self.get_syntax_data();  // get a clone of syntax
+        let syntax = if let Some(syntax) = &syntax {
+            Some(syntax)
         } else {
-            0
+            None
         };
-        eprintln!("{c} {}", flags as usize);
+
 
         if self.cursor.y == self.rows.len() as u16 {
             self.insert_row(self.cursor.y as usize, String::new());
         }
 
-        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c, flags);
+        self.rows[self.cursor.y as usize].insert_char(self.cursor.x as usize, c, syntax);
         self.cursor.x += 1;
         self.dirty = true;
     }
@@ -299,22 +298,23 @@ impl Editor {
             return;
         }
 
-        let flags = if let Some(ind) = self.syntax{
-            self.hldb[ind].flags
+        let syntax: Option<EditorSyntax> = self.get_syntax_data();
+        let syntax = if let Some(syntax) = &syntax {
+            Some(syntax)
         } else {
-            0
+            None
         };
 
         let current_row = self.cursor.y as usize;
         if self.cursor.x > 0 {
-            if self.rows[current_row].del_char(self.cursor.x as usize-1,flags) {
+            if self.rows[current_row].del_char(self.cursor.x as usize-1, syntax) {
                 self.cursor.x -= 1;
                 self.dirty = true;
            }
         } else {
             self.cursor.x = self.rows[current_row-1].len() as u16;
             if let Some(row) = self.del_row(current_row) {
-                self.rows[current_row-1].append_string(&row,flags);
+                self.rows[current_row-1].append_string(&row, syntax);
                 self.cursor.y -= 1;
                 self.dirty = true;
             }
@@ -322,30 +322,32 @@ impl Editor {
     }
 
     pub fn insert_row(&mut self, at: usize, s: String) {
-        let flags = if let Some(ind) = self.syntax{
-            self.hldb[ind].flags
-        } else {
-            0
-        };
         if at > self.rows.len() {
            return;
         }
-        self.rows.insert(at,Row::new(s,flags));
+        let syntax = self.get_syntax_data();
+        let syntax = if let Some(syntax) = &syntax {
+            Some(syntax)
+        } else {
+            None
+        };
+        self.rows.insert(at,Row::new(s, syntax));
         self.dirty = true;
     }
 
     pub fn insert_newline(&mut self) {
-        let flags = if let Some(ind) = self.syntax{
-            self.hldb[ind].flags
+        let syntax = self.get_syntax_data();
+        let syntax = if let Some(syntax) = &syntax {
+            Some(syntax)
         } else {
-            0
+            None
         };
 
         let row = self.cursor.y as usize;
         if self.cursor.x == 0 {
             self.insert_row(row, "".to_string());
         } else {
-            let new_row_str = self.rows[row].split(self.cursor.x as usize, flags);
+            let new_row_str = self.rows[row].split(self.cursor.x as usize, syntax);
             self.insert_row(row+1, new_row_str);
         }
         self.cursor.y += 1;
@@ -379,7 +381,7 @@ impl Editor {
                 "{Modified}" } else { "" }
             ),
             format!("{} | {}/{}",
-                if let Some(ft)= self.syntax {
+                if let Some(ft)= self.syntax_ind {
                     &self.hldb[ft].filetype
                 } else {
                     "No FileType"
@@ -603,22 +605,30 @@ impl Editor {
         self.status_msg = msg.into();
     }
 
-    fn select_syntax_highlight(&mut self) {
-        let old_syntax = self.syntax;
-        self.syntax = Editor::find_highlight(&self.hldb, self.filename.as_str());
-        if self.syntax != old_syntax {
-            let flags = if let Some(ind) = self.syntax{
-                self.hldb[ind].flags
-            } else {
-                0
-            };
-
-            for row in self.rows.iter_mut() {
-                row.update_syntax(flags);
-            }
+    pub fn get_syntax_data(&self) -> Option<EditorSyntax> {
+        if let Some(ind) = self.syntax_ind {
+            Some(self.hldb[ind].clone())
+        } else {
+            None
         }
     }
 
+    fn select_syntax_highlight(&mut self) {
+        let old_syntax = self.syntax_ind;
+        self.syntax_ind = Editor::find_highlight(&self.hldb, self.filename.as_str());
+        if self.syntax_ind != old_syntax {
+            let syntax = self.get_syntax_data();
+            let syntax = if let Some(syntax) = &syntax {
+                Some(syntax)
+            } else {
+                None
+            };
+
+            for row in self.rows.iter_mut() {
+                row.update_syntax(syntax);
+            }
+        }
+    }
 
     fn find_highlight(hldb: &[EditorSyntax], filename: &str) -> Option<usize>{
         if filename.is_empty() {
