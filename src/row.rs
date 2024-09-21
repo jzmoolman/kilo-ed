@@ -1,6 +1,9 @@
+use std::ops::Index;
 use std::slice::Iter;
 use crossterm::style::Color;
 use crate::editor_syntax::*;
+use crate::editor_syntax::Keyword::Basic;
+use crate::row::Highlight::{Keyword1, Keyword2};
 
 const KILO_TAB_STOP : usize =  8;
 
@@ -11,6 +14,8 @@ pub enum Highlight {
     Number,
     String,
     Comment,
+    Keyword1,
+    Keyword2,
     Match,
 }
 
@@ -19,12 +24,18 @@ impl  Highlight {
         match  self {
             Highlight::Normal => Color::White,
             Highlight::Number => Color::Red,
-            Highlight::Match => Color::Blue,
             Highlight::String => Color::Magenta,
             Highlight::Comment => Color::Cyan,
+
+            Highlight::Keyword1 => Color::Yellow,
+            Highlight::Keyword2 => Color::Green,
+
+            Highlight::Match => Color::Blue,
         }
     }
 }
+
+
 pub struct Row {
     pub chars: String,
     pub render: String,
@@ -137,13 +148,13 @@ impl Row {
             return
         };
 
-        let mut prev_sep = false;
+        let mut prev_sep = true;
         let mut row_iter = self.render.chars().enumerate();
         let mut in_string: Option<char> = None;
         let scs = &syntax.singleline_comment_start;
 
 
-        while let Some((i, c)) = row_iter.next() {
+        'outer: while let Some((i, c)) = row_iter.next() {
             let prev_hl = if i > 0 {
                 self.hl[i - 1]
             } else {
@@ -153,33 +164,32 @@ impl Row {
             if in_string.is_none() && scs.is_some() {
                 if let Some(scs) = scs {
                     let len = scs.len();
-                    if self.chars.len() - i >= len &&
-                        &self.chars[i..i + len] == scs {
-                        for j in i..self.chars.len() {
+                    if self.render.len() >= i+len && &self.render[i..i + len] == scs {
+                        for j in i..self.render.len() {
                             self.hl[j] = Highlight::Comment;
                         }
+                        break;
                     }
                 }
             }
 
             if syntax.flags & highlightflags::STRINGS != 0 {
-                if let Some(in_string_) = in_string {
+                if let Some(_in_string) = in_string {
                     self.hl[i] = Highlight::String;
-                    if c == '\\' && i + 1 < self.chars.len() {
+                    if c == '\\' && i + 1 < self.render.len() {
                         self.hl[i + 1] = Highlight::String;
                         row_iter.nth(1);
                         continue;
                     }
-                    if c == in_string_ {
+                    if c == _in_string {                       // Close string
                         in_string = None;
                     }
                     prev_sep = true;
                     continue;
-                } else {
-                    if c == '"' || c == '\'' {
-                        in_string = Some(c);
-                        self.hl[i] = Highlight::String;
-                    }
+                } else if c == '"' || c == '\'' {             // Open string
+                    in_string = Some(c);
+                    self.hl[i] = Highlight::String;
+                    continue;
                 }
             }
 
@@ -189,6 +199,41 @@ impl Row {
                 self.hl[i] = Highlight::Number;
                 prev_sep = false;
                 continue;
+            }
+
+            if prev_sep {
+                for keyword in &syntax.keywords {
+
+                   let (keyword, is_basic) = match keyword  {
+                       Keyword::Basic(keyword) =>  (keyword, true),
+                       Keyword::Type(keyword) => (keyword, false)
+                   };
+                   let end_with_sep = if let Some(char) = self.render.chars().nth(i+ keyword.len())  {
+                       char.is_separator()
+                   } else  {
+                       true
+                   };
+
+
+                    if self.render.len()-i >= keyword.len() && &self.render[i..i + keyword.len()] == keyword &&
+                        end_with_sep
+                        {
+                        for j in i..self.chars.len() {
+                            self.hl[j] = if is_basic { Keyword1 } else { Keyword2 };
+                        }
+                        row_iter.nth(keyword.len());          //Skip keyword
+                        prev_sep = false;
+                        continue 'outer;
+
+                    }
+
+                    // let last_is_sep = if let Some(char)  = self.chars.chars().nth(i+len+1) {
+                    //     char.is_separator()
+                    // } else {
+                    //     true
+                    // };
+
+                }
             }
 
             prev_sep = c.is_separator();
