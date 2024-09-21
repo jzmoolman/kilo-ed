@@ -1,8 +1,8 @@
 use std::io::{stdout, Stdout, Write};
 use std::io::Result;
 use crossterm::{cursor, style, terminal, QueueableCommand};
-use crossterm::style::Color::{Black, White};
-use crossterm::style::{Color, Colors, Print, SetForegroundColor};
+use crossterm::style::{Color, Colors, Print, ResetColor, SetAttribute, SetAttributes, SetForegroundColor};
+use crossterm::style::Attribute::{Reset, Reverse};
 use kilo_ed::*;
 use crate::row::*;
 
@@ -68,7 +68,19 @@ impl Screen {
 
                 for c in rows[filerow].render[start..end].chars() {
                     let highlight = *hl.unwrap();
-                    if highlight == Highlight::Normal {
+                    if c.is_ascii_control() {
+                        let  sym = if c as u8 <= 26 { (b'@' + c as u8) as char } else { '?' };
+                        self.stdout
+                            .queue(SetAttribute(Reverse))?
+                            .queue(Print(sym))?
+                            .queue(SetAttribute(Reset))?;
+                        if current_color != Color::Reset {
+                            self.stdout
+                                .queue(SetForegroundColor(current_color))?;
+
+                        }
+
+                    } else if highlight == Highlight::Normal {
                         if current_color != Color::Reset {
                             self.stdout
                                 .queue(SetForegroundColor(Color::Reset))?;
@@ -117,13 +129,11 @@ impl Screen {
 
         (self.stdout
             .queue(cursor::MoveTo(0,self.height))?
-            .queue(style::SetColors(Colors::new(Black, White)))?
+            .queue(SetAttribute(Reverse))?
             .queue(style::Print(format!("{status}{rstatus}")))?
-            .queue(style::ResetColor)?
             .queue(cursor::MoveTo(0,self.height+1))?)
             .queue(style::Print(format!("{:1$}",help.into(), screen_width as usize)))?
-
-        ;
+            .queue(SetAttribute(Reset))?;
         Ok(())
     }
 

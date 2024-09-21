@@ -150,14 +150,19 @@ impl Editor {
                    modifiers: KeyModifiers::CONTROL, ..
                } => self.del_char(),
 
+                KeyEvent {
+                    code: KeyCode::Char(key),
+                    modifiers: KeyModifiers::NONE, ..
+                } => self.insert_char(key),
                KeyEvent {
-                   code: KeyCode::Char(key),
+                   code: KeyCode::Tab,
                    modifiers: KeyModifiers::NONE, ..
-               } => self.insert_char(key),
+               } => self.insert_char('\t'),
                 KeyEvent {
                     code: KeyCode::Char(key),
                     modifiers: KeyModifiers::SHIFT, ..
                 } => self.insert_char(key),
+
                KeyEvent { code, .. } => match code {
                    KeyCode::Delete => {
                        self.move_cursor(EditorKey::Right);
@@ -194,7 +199,6 @@ impl Editor {
                    }
                    _ => { self.set_status_msg("NOTHING")}
                }
-                // _ => {}
             }
         } else {
             self.die("Unable to read from keyboard");
